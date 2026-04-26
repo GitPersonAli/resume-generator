@@ -30,17 +30,7 @@ That's three commands: register the marketplace, install the plugin, activate it
 
 To update later: `/plugin marketplace update gitpersonali` then `/plugin update`.
 
-### Option 2 — skills.sh
-
-If you use the [skills.sh](https://skills.sh) ecosystem:
-
-```bash
-npx skillsadd GitPersonAli/resume-generator
-```
-
-This pulls the skill from this GitHub repo and drops it into your skills directory.
-
-### Option 3 — Standalone skill (no plugin layer)
+### Option 2 — Standalone skill (no plugin layer)
 
 Copy just the inner skill folder into your user-level skills dir:
 
@@ -60,7 +50,7 @@ Remove-Item -Recurse -Force $env:TEMP\rg
 
 Restart Claude Code; the skill is auto-discovered. No plugin namespace prefix — invoke directly.
 
-### Option 4 — Local development mode
+### Option 3 — Local development mode
 
 For iterating on the skill itself:
 
