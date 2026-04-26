@@ -9,7 +9,7 @@ description: Use when the user asks to generate, create, or tailor a resume or C
 
 Standalone skill that generates tailored LaTeX resumes (and PDFs) from a `knowledge.yaml` file in the user's current working directory. All templates, the blank knowledge template, and the procedural sub-docs live inside the skill folder — no repo coupling, works in any directory.
 
-`<SKILL_ROOT>` below = the directory containing this file (resolve at runtime; on Windows it's typically `C:\Users\<user>\.claude\skills\resume-generator`).
+`<SKILL_ROOT>` below = the directory containing this file (resolve at runtime — exact path depends on where the host CLI installs skills).
 `<cwd>` = the user's current working directory (where the resume will be generated).
 
 ## Bundled assets
