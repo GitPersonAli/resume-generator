@@ -1,0 +1,22 @@
+{
+  "name": "gitpersonali",
+  "owner": {
+    "name": "Alion"
+  },
+  "metadata": {
+    "description": "Personal Claude Code plugin marketplace.",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "resume-generator",
+      "source": "./",
+      "description": "Generate tailored LaTeX resumes and PDFs from a knowledge.yaml. Six bundled templates with role-aware tailoring from job postings.",
+      "homepage": "https://github.com/GitPersonAli/resume-generator",
+      "repository": "https://github.com/GitPersonAli/resume-generator",
+      "license": "MIT",
+      "category": "productivity",
+      "keywords": ["resume", "cv", "latex", "pdf", "job-application"]
+    }
+  ]
+}
