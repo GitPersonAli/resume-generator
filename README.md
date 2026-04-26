@@ -18,17 +18,24 @@ This repo is structured as both a **Claude Code plugin** and its own **plugin ma
 
 ### Option 1 — Claude Code (recommended)
 
-Inside any Claude Code session:
+**From your terminal** (no Claude Code session needed):
 
-```text
-> /plugin marketplace add GitPersonAli/resume-generator
-> /plugin install resume-generator@gitpersonali
-> /reload-plugins
+```bash
+claude plugin marketplace add GitPersonAli/resume-generator
+claude plugin install resume-generator@gitpersonali
 ```
 
-That's three commands: register the marketplace, install the plugin, activate it without restarting. The skill is then available in every session.
+Or **inside an already-running Claude Code session**, type the same as slash commands at the prompt:
 
-To update later: `/plugin marketplace update gitpersonali` then `/plugin update`.
+```
+/plugin marketplace add GitPersonAli/resume-generator
+/plugin install resume-generator@gitpersonali
+/reload-plugins
+```
+
+(`/reload-plugins` is only needed in-session to activate without restarting; the terminal form picks up automatically on next session start.)
+
+To update later: `claude plugin marketplace update gitpersonali` (terminal) or `/plugin marketplace update gitpersonali` (in-session).
 
 ### Option 2 — Standalone skill (no plugin layer)
 
