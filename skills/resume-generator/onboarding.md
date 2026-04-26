@@ -36,7 +36,7 @@ Tell the user, verbatim formatting:
 >
 > 1. **Blank** — I'll drop a template here you fill in
 > 2. **Import** — give me a path/URL to your existing resume (PDF, .tex, .txt, .md, image, or LinkedIn URL) and I'll populate the template from it
-> 3. **Bootstrap from work** — point me at one or more directories of your past work (project repos, writeups, talks, design files). I'll walk them, draft a knowledge.yaml describing each, and record `sources:` pointers so I can re-read them later for deep-dives.
+> 3. **Bootstrap from work** — point me at one or more directories of your past work (project repos, writeups, talks, design files). I'll walk them, draft a knowledge.yaml describing each, and record `evidence:` pointers so I can re-read them later for deep-dives.
 >
 > Which?
 
@@ -97,7 +97,7 @@ The user supplies one or more local directories (or URLs to repos). For each pat
    - `model`: `sonnet`
    - `description`: `Bootstrap knowledge entries from <dir>`
    - `prompt`: include the dir path, the path to the bundled template (`<SKILL_ROOT>/assets/knowledge.template.yaml`), and instructions to:
-     - Read the bundled template first to learn the schema (especially `experience`, `projects`, `events`, and the `sources:` convention).
+     - Read the bundled template first to learn the schema (especially `experience`, `projects`, `events`, and the `evidence:` convention).
      - Walk the dir with `Glob`/`Read`. Skip `.git`, `node_modules`, `__pycache__`, `dist`, `build`, `target`, `.venv`, `vendor`, `.next`, `.cache`, binary blobs > 1MB.
      - Decide: is this dir one project or a parent of many? Heuristic: if README/package.json/Cargo.toml/pyproject.toml/.git lives at the root → one project. If many subdirs each have their own → many.
      - For each project identified, draft a `projects[]` entry (or `experience[]` if the user labeled the dir as experience) with:
@@ -105,7 +105,7 @@ The user supplies one or more local directories (or URLs to repos). For each pat
        - `description`: 2–3 sentences inferred from README + top-level code structure
        - `technologies`: detected from manifest files, file extensions, framework markers
        - `achievements`: leave empty (`[]`) — the user must fill quantifications; never invent
-       - `sources`: list with the absolute path to the project root, plus any standout sub-paths (e.g. a `docs/postmortem.md`, a `RESULTS.md`)
+       - `evidence`: list with the absolute path to the project root, plus any standout sub-paths (e.g. a `docs/postmortem.md`, a `RESULTS.md`)
        - `link`: if a remote URL is detected (git remote, package homepage), include it
      - Return: a YAML fragment (just the new `projects[]` or `experience[]` entries — not the full file), a one-line summary per entry, and a list of dirs skipped with reasons.
    - If the user provided multiple top-level paths, dispatch all sub-agents in **parallel** (one `Agent` call per path in a single message — they're independent).
@@ -113,11 +113,11 @@ The user supplies one or more local directories (or URLs to repos). For each pat
    - If `knowledge.yaml` doesn't exist yet, copy `<SKILL_ROOT>/assets/knowledge.template.yaml` first, then write the new entries into the appropriate sections, leaving personal-info placeholders intact.
    - If it exists, `Edit` to append the new entries into the right sections (don't duplicate existing ones — match by `name`).
 5. Summarize to the user:
-   > Bootstrapped from `<N>` dir(s). Drafted: `<count>` projects, `<count>` experience entries. `sources:` recorded for all of them — I can re-read those locations later when tailoring for a job.
+   > Bootstrapped from `<N>` dir(s). Drafted: `<count>` projects, `<count>` experience entries. `evidence:` recorded for all of them — I can re-read those locations later when tailoring for a job.
    >
    > **Still missing**: personal info (`name`, `email`, …), achievements/quantifications on each entry (I left these blank — fill them yourself or tell me and I'll write them in), and any role-specific framing.
    >
-   > Re-invoke me when ready. If you give me a job posting, I'll deep-dive the relevant `sources:` for sharper details.
+   > Re-invoke me when ready. If you give me a job posting, I'll deep-dive the relevant `evidence:` for sharper details.
 6. End the turn.
 
 ### Branch 1d — User picked neither / unclear

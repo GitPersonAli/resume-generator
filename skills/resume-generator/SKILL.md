@@ -62,7 +62,7 @@ digraph entry {
 
 If absent → **Read `<SKILL_ROOT>/onboarding.md` and follow it.** Do not proceed.
 
-The user may also explicitly ask to bootstrap from a directory (or directories) of their work — phrases like "build a knowledge.yaml from `~/work/projects`" or "go through this folder and draft my entries". When this happens (whether `knowledge.yaml` exists yet or not), route to onboarding **Branch 1c** which dispatches a sub-agent per directory to walk the contents, draft `projects[]` / `experience[]` entries, and record `sources:` pointers for future deep-dives.
+The user may also explicitly ask to bootstrap from a directory (or directories) of their work — phrases like "build a knowledge.yaml from `~/work/projects`" or "go through this folder and draft my entries". When this happens (whether `knowledge.yaml` exists yet or not), route to onboarding **Branch 1c** which dispatches a sub-agent per directory to walk the contents, draft `projects[]` / `experience[]` entries, and record `evidence:` pointers for future deep-dives.
 
 ### Step 2 — fill-quality check (hard gate)
 
@@ -102,12 +102,12 @@ When the gate is fully clear → **Read `<SKILL_ROOT>/generation.md` and follow 
 
 ## Critical rules
 
-- This skill is standalone. Never read or write files in any project repo unless the user's `cwd` is that repo, OR the path appears under a `sources:` field in `knowledge.yaml` (those are explicit user-granted read pointers).
+- This skill is standalone. Never read or write files in any project repo unless the user's `cwd` is that repo, OR the path appears under a `evidence:` field in `knowledge.yaml` (those are explicit user-granted read pointers).
 - The skill folder is read-only from the user's perspective. Outputs go to `<cwd>/outputs/<role-slug>/`, never inside `<SKILL_ROOT>`.
 - Never start LaTeX generation while the gate is failing — control must return through the gate.
 - Sub-agents are dispatched only when they fetch content not yet in main context (URL, file path, large `.log`, dir walks for bootstrap or deep-dive). For pasted text or content the main agent already holds, work inline to avoid wasting tokens on re-emission.
 - All sub-agents use built-in types only (`general-purpose`, `Explore`). No plugin agent dependencies.
-- `sources:` entries are READ-ONLY pointers. Deep-dive sub-agents may read them; nothing in this skill ever writes to those locations.
+- `evidence:` entries are READ-ONLY pointers. Deep-dive sub-agents may read them; nothing in this skill ever writes to those locations.
 
 ## Common mistakes
 
