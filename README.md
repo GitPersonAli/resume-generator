@@ -35,7 +35,29 @@ Or **inside an already-running Claude Code session**, type the same as slash com
 
 (`/reload-plugins` is only needed in-session to activate without restarting; the terminal form picks up automatically on next session start.)
 
-To update later: `claude plugin marketplace update gitpersonali` (terminal) or `/plugin marketplace update gitpersonali` (in-session).
+#### Updating an installed plugin
+
+Third-party marketplaces have auto-update **disabled** by default — without a refresh, Claude Code won't know a new version exists. To pull the latest:
+
+In-session:
+
+```
+/plugin marketplace update gitpersonali
+/plugin update resume-generator@gitpersonali
+/reload-plugins
+```
+
+From terminal:
+
+```bash
+claude plugin marketplace update gitpersonali
+```
+
+Then start a fresh `claude` session — installed plugins re-resolve against the refreshed marketplace.
+
+To enable auto-update permanently: `/plugin` → **Marketplaces** tab → select `gitpersonali` → **Enable auto-update**.
+
+Verify version after update: `/plugin` → **Installed** tab → confirm `resume-generator` shows the expected version.
 
 ### Option 2 — Standalone skill (no plugin layer)
 
