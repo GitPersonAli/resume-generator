@@ -7,6 +7,32 @@
 # Strings with special characters (#, :, etc.) should be quoted.
 # Use ">" for multi-line strings (folded - newlines collapse to spaces).
 # Use "|" for multi-line strings (literal - newlines preserved).
+#
+# ====== `sources:` convention (deep-dive pointers) ======
+#
+# Any entry under `experience`, `projects`, `education`, `teaching`,
+# `certifications`, `awards`, etc. may carry an optional `sources:` list of
+# local paths or URLs that point to richer raw material — a code repo, a
+# project README, a postmortem, a portfolio dir, a thesis PDF, scanned notes,
+# whatever. The resume-generator will NOT inline these into the resume; they
+# stay outside the YAML.
+#
+# What they enable:
+#   1. When a job posting is in context and an item looks highly relevant, the
+#      generator dispatches a deep-dive sub-agent to read the `sources:` and
+#      return sharper achievements / quantifications / tech-stack details
+#      tailored to that specific posting.
+#   2. When you bootstrap from a directory (onboarding Branch 1c), the import
+#      sub-agent populates `sources:` automatically with pointers back to the
+#      dirs/files it summarized — so future deep-dives stay reproducible.
+#
+# Format — list of strings (paths or URLs). Paths may be absolute or relative
+# to the directory containing this knowledge.yaml. Globs are allowed.
+#   sources:
+#     - "./projects/ml-platform/"        # local code repo
+#     - "~/Documents/ml-eng-self-eval.pdf"
+#     - "https://github.com/me/old-project"
+#     - "./notes/postmortems/*.md"
 
 # ====== Personal info (REQUIRED) ======
 name: "<YOUR_NAME>"                # REQUIRED
@@ -34,6 +60,10 @@ education:
     details:
       - "<COURSEWORK_GPA_HONORS_LINE_1>"
       - "<COURSEWORK_GPA_HONORS_LINE_2>"
+    # optional `sources:` — local paths the deep-dive sub-agent can read
+    # for richer thesis context, transcripts, syllabi, etc.
+    sources:
+      - "<PATH_TO_THESIS_PDF_OR_TRANSCRIPT_OR_DELETE>"
     # thesis is optional - delete this block if not applicable
     thesis:
       title: "<THESIS_TITLE>"
@@ -54,6 +84,9 @@ experience:
     achievements:
       - "<QUANTIFIED_ACHIEVEMENT_1>"
       - "<QUANTIFIED_ACHIEVEMENT_2>"
+    # optional — point to repos, design docs, postmortems, perf reviews
+    sources:
+      - "<PATH_TO_REPO_OR_DOC_OR_DELETE>"
 
 # ====== Teaching (optional) ======
 teaching:
@@ -64,6 +97,8 @@ teaching:
     achievements:
       - "<TEACHING_ACHIEVEMENT_1>"
     link: "<COURSE_OR_CHANNEL_URL_OR_DELETE>"
+    sources:
+      - "<PATH_TO_COURSE_MATERIALS_OR_DELETE>"
 
 # ====== Projects (REQUIRED if no experience entries) ======
 projects:
@@ -74,6 +109,9 @@ projects:
     link: "<PROJECT_URL_OR_DELETE>"
     achievements:
       - "<PROJECT_OUTCOME_OR_METRIC>"
+    # optional — point to local repo / writeup / demo dir
+    sources:
+      - "<PATH_TO_PROJECT_DIR_OR_DELETE>"
 
 # ====== Skills (recommended) ======
 skills:
@@ -92,7 +130,22 @@ certifications:
     provider: "<ISSUING_ORGANIZATION>"
     link: "<CERTIFICATE_URL_OR_DELETE>"
     issued: "<MONTH_YYYY>"
+    sources:
+      - "<PATH_TO_CERT_FILE_OR_DELETE>"
 
 # ====== Awards (optional) ======
 awards:
   - "<AWARD_NAME_AND_YEAR>"
+
+# ====== Events / talks / publications (optional) ======
+# Free-form section for things that don't fit above. Each entry is an object
+# with at least `name` + `date`; everything else (including `sources:`) is
+# optional. Delete the section if unused.
+events:
+  - name: "<EVENT_OR_TALK_OR_PUBLICATION_TITLE>"
+    date: "<MONTH_YYYY>"
+    venue: "<VENUE_OR_PUBLISHER>"
+    description: >
+      <ONE_LINE_DESCRIPTION>
+    sources:
+      - "<PATH_TO_SLIDES_PAPER_OR_RECORDING_OR_DELETE>"

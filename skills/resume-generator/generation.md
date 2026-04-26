@@ -142,6 +142,67 @@ Use `cp -r` so subdirectories and font files are preserved verbatim. **Preserve 
 
 ---
 
+## Step 4.5 — Deep-dive on relevant `sources:`
+
+Skip this step entirely if **no job posting** was provided — without a target role there's no signal for "which item deserves a deep-dive". Use the YAML achievements/descriptions as-written and proceed to Step 5.
+
+If a job posting IS in context, the generator can sharpen items by re-reading the local `sources:` pointers attached to high-relevance entries.
+
+### Selection — which entries deserve a deep-dive?
+
+For each entry in `experience`, `projects`, `education`, `events` (any section that supports `sources:`), score it:
+
+- **Skip** if the entry has no `sources:` field or the list is empty.
+- **Skip** if the entry is clearly off-topic for this posting (e.g. a Photoshop teaching gig on a backend SWE resume).
+- **Select** if **both**:
+  1. The entry's `technologies` / `description` / domain overlaps the posting's required skills or domain language.
+  2. The entry's current `achievements` are thin (≤2 entries, no quantifications, or generic phrasing) — i.e. there's room to improve.
+
+Select at most **5 entries** total per generation pass to bound sub-agent fan-out and total cost. If more than 5 qualify, pick the top 5 by relevance to the posting.
+
+### Dispatch — one sub-agent per selected entry, parallel
+
+For each selected entry, dispatch via `Agent` tool. Send all calls in a **single message** so they run concurrently:
+
+- `subagent_type`: `general-purpose`
+- `model`: `sonnet`
+- `description`: `Deep-dive: <entry name>`
+- `prompt`: must be self-contained. Include:
+  - The entry's current YAML block (verbatim — name, description, achievements, technologies, sources)
+  - The job posting summary (the analysis from Step 2, not the raw posting)
+  - Each path in `sources:` — the agent will use `Read` for files, `Glob`+`Read` for dirs, `WebFetch` for URLs
+  - Instructions to:
+    - Read the `sources:` (skip files > 200KB, skip binaries, prefer README/docs/top-level code over deep traversal)
+    - Resolve `~` to home dir; resolve relative paths against the directory containing `<cwd>/knowledge.yaml`
+    - Extract concrete details that align with the posting: quantifications (latency, throughput, user count, $ saved), specific tech used (frameworks, infra, patterns), measurable outcomes
+    - Return ONLY a JSON object with these keys (don't paraphrase; be precise):
+      ```json
+      {
+        "entry_name": "<unchanged>",
+        "achievements_proposed": ["<sharp quantified line>", "..."],
+        "technologies_to_add": ["<tech>", "..."],
+        "evidence": ["<one-line citation per claim, with file:line where possible>"],
+        "warnings": ["<anything you found that contradicts the YAML — e.g. yaml says 'Python' but repo is all TS>"]
+      }
+      ```
+    - Do not invent: every `achievements_proposed` line must be backed by an `evidence` entry. If a source is unreadable or empty, return empty arrays and a warning.
+
+### Apply — merge proposals back into the working YAML view
+
+When all sub-agents return:
+
+1. For each proposal, merge into the in-memory copy of `knowledge.yaml` (do **not** write back to `<cwd>/knowledge.yaml` — these are tailoring deltas for THIS resume, not durable edits to the user's data):
+   - Append `achievements_proposed` to the entry's `achievements` (dedupe — drop any line that's a near-duplicate of an existing one)
+   - Union `technologies_to_add` into the entry's `technologies`
+2. If any sub-agent returned `warnings`, surface them at the end of generation Step 8 so the user can correct their YAML.
+3. If a sub-agent failed (timeout, unreadable sources, returned nothing useful), proceed with the original entry — log the failure in the Step 8 report.
+
+### Failure mode — none of the sources readable
+
+If every dispatch returned empty/error, proceed with the original YAML and surface a single warning in Step 8: `Deep-dive ran but no sources/yielded content. Check that the paths in your knowledge.yaml resolve from <cwd>.`
+
+---
+
 ## Step 5 — Generate `resume.tex`
 
 Open `<SKILL_ROOT>/templates/<N>/template.tex` as your structural reference. Build `<cwd>/outputs/<slug>/resume.tex` by:

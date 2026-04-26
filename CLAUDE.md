@@ -20,13 +20,22 @@ The skill itself is read-only from the user's perspective. All generated outputs
 
 Control flows between three markdown files inside `skills/resume-generator/`, not code:
 
-1. **`SKILL.md`** — entry, gate, dispatch. Checks for `<cwd>/knowledge.yaml`, validates required fields (`name`, `email`, ≥1 `education`, ≥1 of `experience`/`projects`), runs the role-aware soft gate when a job posting is supplied, then dispatches to one of the next two docs.
-2. **`onboarding.md`** — loaded only when the gate fails. Branches: 1a blank-template copy, 1b import from existing resume (PDF/tex/URL/image via sub-agent), 2 mid-fill repair, 3 targeted fill for role gaps.
-3. **`generation.md`** — loaded only when the gate passes. Eight steps: template resolve → preflight → posting analysis → output dir → asset copy → `resume.tex` build → inline LaTeX+content review → compile (twice).
+1. **`SKILL.md`** — entry, gate, dispatch. Checks for `<cwd>/knowledge.yaml`, validates required fields (`name`, `email`, ≥1 `education`, ≥1 of `experience`/`projects`), runs the role-aware soft gate when a job posting is supplied, then dispatches to one of the next two docs. Also intercepts explicit "bootstrap from dir(s)" requests and routes them to onboarding Branch 1c regardless of yaml state.
+2. **`onboarding.md`** — loaded only when the gate fails (or the user explicitly asks to bootstrap). Branches: 1a blank-template copy, 1b import from existing resume (PDF/tex/URL/image via sub-agent), **1c bootstrap from work directories (parallel sub-agents per dir, drafts entries with `sources:` pointers)**, 1d fallback, 2 mid-fill repair, 3 targeted fill for role gaps.
+3. **`generation.md`** — loaded only when the gate passes. Nine steps: template resolve → preflight → posting analysis → output dir → asset copy → **deep-dive on relevant `sources:` (parallel sub-agents, only if a posting is in context)** → `resume.tex` build → inline LaTeX+content review → compile (twice).
 
 Editing any one of these docs changes runtime behavior. Read all three before structural edits — they reference each other by section name. The DOT graph in `SKILL.md` is the source of truth for control flow; keep it in sync with prose changes.
 
 `<SKILL_ROOT>` referenced throughout the docs resolves at runtime to the directory containing `SKILL.md` — i.e. `skills/resume-generator/`. All template/asset/test paths are relative to that root.
+
+### `sources:` convention (deep-dive pointers)
+
+Any entry under `experience`, `projects`, `education`, `teaching`, `certifications`, `events`, etc. in `knowledge.yaml` may carry an optional `sources:` list — local paths or URLs that point to richer raw material (a code repo, a project README, a postmortem, a thesis PDF). Two flows consume these:
+
+- **Onboarding Branch 1c** populates `sources:` automatically when bootstrapping from a work dir, so the pointer stays reproducible.
+- **Generation Step 4.5** dispatches one parallel sub-agent per high-relevance entry to re-read the `sources:` and return sharpened achievements/quantifications tailored to the active job posting. Caps at 5 sub-agents per generation pass to bound fan-out. Deltas are merged into the in-memory yaml view only — never written back to `<cwd>/knowledge.yaml`.
+
+`sources:` are READ-ONLY pointers. Nothing in the skill writes to those locations.
 
 ## Templates (`skills/resume-generator/templates/<N>/`)
 

@@ -32,10 +32,11 @@ where `<SKILL_ROOT>` is the directory containing this file.
 
 Tell the user, verbatim formatting:
 
-> No `knowledge.yaml` found in this directory. Two ways to start:
+> No `knowledge.yaml` found in this directory. Three ways to start:
 >
 > 1. **Blank** — I'll drop a template here you fill in
 > 2. **Import** — give me a path/URL to your existing resume (PDF, .tex, .txt, .md, image, or LinkedIn URL) and I'll populate the template from it
+> 3. **Bootstrap from work** — point me at one or more directories of your past work (project repos, writeups, talks, design files). I'll walk them, draft a knowledge.yaml describing each, and record `sources:` pointers so I can re-read them later for deep-dives.
 >
 > Which?
 
@@ -79,7 +80,47 @@ Wait for the user's choice. Do not act before they answer. If their reply is amb
    > Re-invoke me when ready to generate.
 4. End the turn.
 
-### Branch 1c — User picked neither / unclear
+### Branch 1c — User picked Bootstrap from work
+
+The user supplies one or more local directories (or URLs to repos). For each path you receive, **dispatch a sub-agent** to walk the dir, infer project boundaries, and draft entries. Do not read the dirs yourself — that defeats the token-isolation point.
+
+1. Ask the user (if not already provided):
+   > Give me the directory path(s). I accept:
+   > - One dir per line, or comma-separated
+   > - Each dir is treated as either a single project (if it looks like one repo/work artifact) or a parent of multiple projects (if it contains many subdirs that each look standalone — I'll decide per dir)
+   > - I'll ignore the usual noise: `.git`, `node_modules`, `__pycache__`, `dist`, `build`, `target`, `.venv`, `vendor`
+   >
+   > Optional: if some dirs are experience (a job's work artifacts) vs. projects (personal work), tell me which is which. Default is `projects`.
+2. Validate each path exists (`ls`/`stat`). If any path is missing or unreadable, tell the user and ask before proceeding.
+3. For each top-level path, dispatch a sub-agent via `Agent` tool:
+   - `subagent_type`: `general-purpose`
+   - `model`: `sonnet`
+   - `description`: `Bootstrap knowledge entries from <dir>`
+   - `prompt`: include the dir path, the path to the bundled template (`<SKILL_ROOT>/assets/knowledge.template.yaml`), and instructions to:
+     - Read the bundled template first to learn the schema (especially `experience`, `projects`, `events`, and the `sources:` convention).
+     - Walk the dir with `Glob`/`Read`. Skip `.git`, `node_modules`, `__pycache__`, `dist`, `build`, `target`, `.venv`, `vendor`, `.next`, `.cache`, binary blobs > 1MB.
+     - Decide: is this dir one project or a parent of many? Heuristic: if README/package.json/Cargo.toml/pyproject.toml/.git lives at the root → one project. If many subdirs each have their own → many.
+     - For each project identified, draft a `projects[]` entry (or `experience[]` if the user labeled the dir as experience) with:
+       - `name`: best inferred from README title, package name, or directory name
+       - `description`: 2–3 sentences inferred from README + top-level code structure
+       - `technologies`: detected from manifest files, file extensions, framework markers
+       - `achievements`: leave empty (`[]`) — the user must fill quantifications; never invent
+       - `sources`: list with the absolute path to the project root, plus any standout sub-paths (e.g. a `docs/postmortem.md`, a `RESULTS.md`)
+       - `link`: if a remote URL is detected (git remote, package homepage), include it
+     - Return: a YAML fragment (just the new `projects[]` or `experience[]` entries — not the full file), a one-line summary per entry, and a list of dirs skipped with reasons.
+   - If the user provided multiple top-level paths, dispatch all sub-agents in **parallel** (one `Agent` call per path in a single message — they're independent).
+4. When sub-agents return, merge fragments into `<cwd>/knowledge.yaml`:
+   - If `knowledge.yaml` doesn't exist yet, copy `<SKILL_ROOT>/assets/knowledge.template.yaml` first, then write the new entries into the appropriate sections, leaving personal-info placeholders intact.
+   - If it exists, `Edit` to append the new entries into the right sections (don't duplicate existing ones — match by `name`).
+5. Summarize to the user:
+   > Bootstrapped from `<N>` dir(s). Drafted: `<count>` projects, `<count>` experience entries. `sources:` recorded for all of them — I can re-read those locations later when tailoring for a job.
+   >
+   > **Still missing**: personal info (`name`, `email`, …), achievements/quantifications on each entry (I left these blank — fill them yourself or tell me and I'll write them in), and any role-specific framing.
+   >
+   > Re-invoke me when ready. If you give me a job posting, I'll deep-dive the relevant `sources:` for sharper details.
+6. End the turn.
+
+### Branch 1d — User picked neither / unclear
 
 Re-ask once. If still unclear, default to Blank.
 
