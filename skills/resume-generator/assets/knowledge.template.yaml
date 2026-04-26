@@ -1,0 +1,98 @@
+# knowledge.yaml - resume-generator data source (single source of truth)
+#
+# Replace every <PLACEHOLDER> with your real data.
+# Required fields are marked REQUIRED. Optional sections may be deleted entirely
+# if you don't have entries for them - the resume generator will skip them.
+#
+# Strings with special characters (#, :, etc.) should be quoted.
+# Use ">" for multi-line strings (folded - newlines collapse to spaces).
+# Use "|" for multi-line strings (literal - newlines preserved).
+
+# ====== Personal info (REQUIRED) ======
+name: "<YOUR_NAME>"                # REQUIRED
+email: "<YOUR_EMAIL>"              # REQUIRED
+phone: "<YOUR_PHONE>"              # optional - delete line if not used
+location: "<YOUR_CITY_COUNTRY>"    # optional
+linkedin: "<YOUR_LINKEDIN_URL>"    # optional - full URL
+github: "<YOUR_GITHUB_URL>"        # optional - full URL
+website: "<YOUR_WEBSITE_URL>"      # optional - full URL
+
+# ====== Profile / summary (optional but recommended) ======
+profile: >
+  <YOUR_PROFESSIONAL_SUMMARY_2_TO_4_SENTENCES>
+
+# ====== Research interests (optional, useful for academic CVs) ======
+research_interests:
+  - "<RESEARCH_TOPIC_1>"
+  - "<RESEARCH_TOPIC_2>"
+
+# ====== Education (REQUIRED - at least one entry) ======
+education:
+  - degree: "<DEGREE_NAME_E_G_MSc_in_X>"
+    university: "<UNIVERSITY_NAME>"
+    years: "<YYYY_DASH_YYYY_OR_RANGE>"
+    details:
+      - "<COURSEWORK_GPA_HONORS_LINE_1>"
+      - "<COURSEWORK_GPA_HONORS_LINE_2>"
+    # thesis is optional - delete this block if not applicable
+    thesis:
+      title: "<THESIS_TITLE>"
+      status: "<IN_PROGRESS_OR_COMPLETED>"
+      collaboration: "<COLLABORATING_INSTITUTION_OR_DELETE>"
+      description: >
+        <THESIS_ABSTRACT_OR_GOAL>
+      keywords: ["<KEYWORD_1>", "<KEYWORD_2>"]
+
+# ====== Experience (REQUIRED - at least one entry, OR projects must have entries) ======
+experience:
+  - title: "<JOB_TITLE>"
+    company: "<COMPANY_NAME>"
+    website: "<COMPANY_URL_OR_DELETE>"
+    years: "<MONTH_YYYY_DASH_MONTH_YYYY_OR_PRESENT>"
+    company_location: "<CITY_COUNTRY>"
+    work_mode: "<REMOTE_ONSITE_OR_HYBRID>"
+    achievements:
+      - "<QUANTIFIED_ACHIEVEMENT_1>"
+      - "<QUANTIFIED_ACHIEVEMENT_2>"
+
+# ====== Teaching (optional) ======
+teaching:
+  - title: "<TEACHING_ROLE>"
+    organization: "<ORGANIZATION_OR_PLATFORM>"
+    years: "<YYYY_OR_RANGE>"
+    location: "<ONLINE_OR_LOCATION>"
+    achievements:
+      - "<TEACHING_ACHIEVEMENT_1>"
+    link: "<COURSE_OR_CHANNEL_URL_OR_DELETE>"
+
+# ====== Projects (REQUIRED if no experience entries) ======
+projects:
+  - name: "<PROJECT_NAME>"
+    description: >
+      <PROJECT_DESCRIPTION>
+    technologies: ["<TECH_1>", "<TECH_2>"]
+    link: "<PROJECT_URL_OR_DELETE>"
+    achievements:
+      - "<PROJECT_OUTCOME_OR_METRIC>"
+
+# ====== Skills (recommended) ======
+skills:
+  professional: ["<SOFT_OR_DOMAIN_SKILL_1>", "<SOFT_OR_DOMAIN_SKILL_2>"]
+  programming: ["<LANGUAGE_1>", "<LANGUAGE_2>"]
+  frameworks: ["<FRAMEWORK_1>", "<FRAMEWORK_2>"]
+  tools: ["<TOOL_1>", "<TOOL_2>"]
+  languages:
+    - name: "<LANGUAGE_NAME>"
+      level: "<NATIVE_PROFESSIONAL_OR_LEVEL>"
+      certificate: "<CERT_NAME_AND_DATE_OR_DELETE>"
+
+# ====== Certifications (optional) ======
+certifications:
+  - name: "<CERTIFICATION_NAME>"
+    provider: "<ISSUING_ORGANIZATION>"
+    link: "<CERTIFICATE_URL_OR_DELETE>"
+    issued: "<MONTH_YYYY>"
+
+# ====== Awards (optional) ======
+awards:
+  - "<AWARD_NAME_AND_YEAR>"
