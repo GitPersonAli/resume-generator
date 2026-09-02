@@ -1,0 +1,123 @@
+# leak-strings.txt - sample data from the bundled templates/*/template.tex.
+#
+# One fixed string per line, matched case-insensitively (no regex). Lines that
+# start with `#` and blank lines are ignored. lint-tex.sh reports a LINT_ERROR
+# for every generated .tex line that still contains one of these, and build.sh
+# reports LEAK= for every hit in the text extracted from the compiled PDF.
+#
+# A hit means template sample data leaked into a user's resume; verify against
+# knowledge.yaml before "fixing" a hit on a real institution (MIT, Berkeley ...).
+
+# ---- Template 1 (Classic Academic) ----
+John Smith
+123 Broadway
+City, State 12345
+(000) 111-1111
+Rensselaer Polytechnic Institute
+Allied-Signal Bendix
+Thunder Restaurant
+Troy Boys Club
+Rho Phi Sorority
+Krannet Leadership Conference
+business applications programming, information processing
+
+# ---- Template 2 (Modern Professional) ----
+123 Pleasant Lane
+LaTeXTemplates.com
+University of California, Berkeley
+Eta Kappa Nu
+Upsilon Pi Epsilon
+ACME, Inc
+AJAX Hosting
+TinySoft
+
+# ---- Template 3 (Freeman CV) ----
+Gordon Freeman
+Black Mesa
+WashPests Limited
+Isaac Kleiner
+Eli Vance
+bmrf.us
+Massachusetts Institute of Technology
+The University of Washington
+P.O. Box 3985
+Einstein-Podolsky-Rosen
+Freeman, G. R.
+Jacobsen, F. M.
+10.1021/jp951483+
+10.1139/p90-097
+10.1139/v86-297
+10.1103/PhysRevA.34.2329
+Anomalous Materials
+Hazard Course
+Supraquantum Structures
+
+# ---- Template 4 (ModernCV) ----
+john@smith.com
+staff.org.edu
+A witty and playful quotation
+Lehman Brothers
+Nerd Herd
+Money Is The Root Of All Evil
+James Smith
+Jane Smith
+PC LOAD LETTER
+kitten pictures
+The University of California
+Spent some time finding myself
+
+# ---- Template 5 (Wilson) ----
+Initech
+Bill Lumbergh
+Big Mike
+Burbank Buy More
+1234 Mario Park
+lehmanbrothers.com
+Berkeley College, California
+universityofcalifornia.edu
+berkeleycollege.edu
+Project of the Year 2007
+
+# ---- Template 6 (Cies) ----
+johnsmith.com
+Intellecap
+istpl.in
+Mostfit
+Dharma Publishing
+KTurtle
+Truetopia
+Opendream
+Erasmus University Rotterdam
+Technical University Delft
+Libanon Lyceum
+ciesbreijs
+Cies Breijs
+A summary of your interests, achievements, history
+
+# ---- Lorem ipsum markers (templates 2, 5, 6) ----
+Lorem ipsum
+\lipsum
+dolor sit amet
+consectetur adipiscing
+Donec et mollis
+Donec ut libero
+Nam tincidunt congue
+Pellentesque auctor
+Aliquam at massa
+Aenean ut gravida
+Curabitur dapibus
+Cum sociis natoque
+In rutrum accumsan
+Nullam cursus suscipit
+Vivamus PostgreSQL
+Maecenas convallis
+Quisque mi metus
+Curabitur venenatis
+Duis elementum nec dolor
+Cras justo lorem
+Interdum et malesuada
+Integer blandit
+Nunc iaculis scelerisque
+Pellentesque bibendum
+Suspendisse facilisis
+Nullam odio nibh

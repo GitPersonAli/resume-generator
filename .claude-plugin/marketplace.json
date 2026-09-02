@@ -5,18 +5,25 @@
   },
   "metadata": {
     "description": "Personal Claude Code plugin marketplace.",
-    "version": "0.2.1"
+    "version": "0.3.0"
   },
   "plugins": [
     {
       "name": "resume-generator",
       "source": "./",
-      "description": "Generate tailored LaTeX resumes and PDFs from a knowledge.yaml. Six bundled templates with role-aware tailoring from job postings.",
+      "description": "Generate tailored LaTeX resumes, PDFs, and cover letters from a knowledge.yaml. Six bundled templates with role-aware tailoring from job postings.",
       "homepage": "https://github.com/GitPersonAli/resume-generator",
       "repository": "https://github.com/GitPersonAli/resume-generator",
       "license": "MIT",
       "category": "productivity",
-      "keywords": ["resume", "cv", "latex", "pdf", "job-application"]
+      "keywords": [
+        "resume",
+        "cv",
+        "latex",
+        "pdf",
+        "job-application",
+        "cover-letter"
+      ]
     }
   ]
 }

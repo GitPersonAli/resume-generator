@@ -1,0 +1,61 @@
+%!TEX program = pdflatex
+%----------------------------------------------------------------------------------------
+% resume-generator cover letter (structural reference; the generator writes a fresh
+% cover-letter.tex from knowledge.yaml + the job posting, mirroring this layout).
+% Swap \usepackage{lmodern} for the resume's font package to match its look:
+% template 2 -> ebgaramond, template 6 -> tgpagella. Templates 3/5 use xelatex
+% fonts; keep lmodern there (the letter compiles with pdflatex on its own).
+%----------------------------------------------------------------------------------------
+
+\documentclass[11pt]{article}          % add a4paper for A4
+
+\usepackage[margin=1in]{geometry}
+\usepackage{lmodern}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[hidelinks]{hyperref}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.8em}
+\pagestyle{empty}
+
+\begin{document}
+
+%---------- Sender block ----------
+\begin{flushright}
+    \textbf{<NAME>} \\
+    <LOCATION> \\
+    \href{mailto:<EMAIL>}{<EMAIL>} \\
+    <PHONE> \\
+    \href{<LINKEDIN_URL>}{<LINKEDIN_DISPLAY>}
+\end{flushright}
+
+<DATE>
+
+%---------- Recipient block ----------
+<HIRING_MANAGER_OR_TEAM> \\
+<COMPANY> \\
+<COMPANY_LOCATION_OR_DELETE>
+
+\vspace{0.5em}
+
+Dear <HIRING_MANAGER_OR_HIRING_TEAM>,
+
+%---------- Body: three to four short paragraphs ----------
+% 1. Why this role at this company (one concrete hook from the posting).
+<OPENING_PARAGRAPH>
+
+% 2. The two or three strongest, quantified matches between the posting's requirements and knowledge.yaml.
+<EVIDENCE_PARAGRAPH>
+
+% 3. Optional: a gap or transition, framed honestly, plus what you bring instead.
+<CONTEXT_PARAGRAPH_OR_DELETE>
+
+% 4. Close: availability, call to action.
+<CLOSING_PARAGRAPH>
+
+Sincerely,
+
+\vspace{1.5em}
+<NAME>
+
+\end{document}

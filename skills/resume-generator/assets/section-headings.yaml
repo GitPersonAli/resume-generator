@@ -1,0 +1,94 @@
+# Section heading translations, used when knowledge.yaml sets `language:` to
+# something other than `en`. Keys are canonical headings; use the value for the
+# requested language verbatim. Body text is never translated: it is emitted as
+# written in knowledge.yaml.
+en:
+  summary: Summary
+  profile: Profile
+  objective: Objective
+  education: Education
+  experience: Experience
+  projects: Projects
+  skills: Skills
+  technical_skills: Technical Skills
+  languages: Languages
+  certifications: Certifications
+  awards: Awards
+  publications: Publications
+  teaching: Teaching
+  research: Research
+  talks: Talks
+  interests: Interests
+  references: References
+it:
+  summary: Profilo
+  profile: Profilo
+  objective: Obiettivo
+  education: Istruzione
+  experience: Esperienza professionale
+  projects: Progetti
+  skills: Competenze
+  technical_skills: Competenze tecniche
+  languages: Lingue
+  certifications: Certificazioni
+  awards: Riconoscimenti
+  publications: Pubblicazioni
+  teaching: Didattica
+  research: Ricerca
+  talks: Interventi
+  interests: Interessi
+  references: Referenze
+de:
+  summary: Profil
+  profile: Profil
+  objective: Ziel
+  education: Ausbildung
+  experience: Berufserfahrung
+  projects: Projekte
+  skills: Kenntnisse
+  technical_skills: Technische Kenntnisse
+  languages: Sprachen
+  certifications: Zertifikate
+  awards: Auszeichnungen
+  publications: Publikationen
+  teaching: Lehre
+  research: Forschung
+  talks: Vorträge
+  interests: Interessen
+  references: Referenzen
+fr:
+  summary: Profil
+  profile: Profil
+  objective: Objectif
+  education: Formation
+  experience: Expérience professionnelle
+  projects: Projets
+  skills: Compétences
+  technical_skills: Compétences techniques
+  languages: Langues
+  certifications: Certifications
+  awards: Distinctions
+  publications: Publications
+  teaching: Enseignement
+  research: Recherche
+  talks: Conférences
+  interests: Centres d'intérêt
+  references: Références
+es:
+  summary: Perfil
+  profile: Perfil
+  objective: Objetivo
+  education: Formación académica
+  experience: Experiencia profesional
+  projects: Proyectos
+  skills: Competencias
+  technical_skills: Competencias técnicas
+  languages: Idiomas
+  certifications: Certificaciones
+  awards: Premios
+  publications: Publicaciones
+  teaching: Docencia
+  research: Investigación
+  talks: Ponencias
+  interests: Intereses
+  references: Referencias

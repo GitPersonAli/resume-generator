@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  scripts:
+    name: Scripts (shellcheck, unit tests, manifests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install shellcheck and PyYAML
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck python3-yaml
+
+      - name: shellcheck
+        run: shellcheck -S warning skills/resume-generator/tests/*.sh
+
+      - name: Unit tests
+        run: bash skills/resume-generator/tests/run-tests.sh
+
+      - name: Manifest versions in sync
+        run: bash skills/resume-generator/tests/check-version-sync.sh
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Validate plugin with the Claude Code CLI
+        run: |
+          npm install -g @anthropic-ai/claude-code
+          claude plugin validate .
+
+  compile:
+    name: Compile templates (TeX Live)
+    runs-on: ubuntu-latest
+    container: texlive/texlive:latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Tools for post-compile QA (optional)
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends poppler-utils || true
+
+      - name: Compile every bundled template
+        run: bash skills/resume-generator/tests/compile-all.sh
+
+      - name: Generated-resume smoke (template 2 through build.sh)
+        run: |
+          set -eu
+          d="$(mktemp -d)"
+          cp -R skills/resume-generator/templates/2/. "$d"/
+          cp skills/resume-generator/templates/2/template.tex "$d/resume.tex"
+          rm -f "$d/template.tex"
+          bash skills/resume-generator/tests/build.sh "$d" --template 2 | tee "$d/build.out"
+          grep -q '^STATUS=ok$' "$d/build.out"
+          pages="$(sed -n 's/^PAGES=//p' "$d/build.out")"
+          echo "pages=$pages"
+          test "${pages:-0}" -ge 1

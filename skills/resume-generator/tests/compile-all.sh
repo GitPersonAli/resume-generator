@@ -1,76 +1,114 @@
 #!/usr/bin/env bash
 # compile-all.sh - sanity check that every bundled template compiles cleanly.
 #
-# Run after the initial template copy and after any template edit.
-# Each template/<N>/template.tex is compiled in an isolated temp directory
-# (so the source folder stays free of build artifacts).
+# Run after any template edit. Every templates/<N>/template.tex (discovered
+# dynamically, see lib.sh list_templates) is compiled twice in its own
+# isolated temp directory with the compiler its %!TEX magic comment asks for
+# (default pdflatex), so the source folders stay free of build artefacts.
 #
-# Exit code: 0 if all six templates produce a PDF, 1 if any fails.
+# Exit codes:
+#   0 = every template produced a PDF
+#   1 = at least one template failed (log tail is printed per failure)
+#   2 = no LaTeX compiler needed by the templates is on PATH at all
+#   4 = no templates found under templates/
 #
-# Requires: pdflatex and xelatex on PATH.
+# MiKTeX: --enable-installer is passed so missing packages auto-install
+# during the compile. It is a MiKTeX-only flag, so it is never passed to
+# TeX Live binaries.
 
 set -u
 
-SKILL_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-TEMPLATES_DIR="$SKILL_DIR/templates"
+# shellcheck source-path=SCRIPTDIR
+# shellcheck source=lib.sh
+. "$(dirname "$0")/lib.sh"
 
-# template number -> compiler
-declare -A COMPILER=(
-  [1]=pdflatex
-  [2]=pdflatex
-  [3]=xelatex
-  [4]=pdflatex
-  [5]=xelatex
-  [6]=pdflatex
-)
+root="$(skill_root)"
+templates="$(list_templates)"
 
-failed=()
-passed=()
+if [ -z "$templates" ]; then
+  echo "No templates found under $root/templates (need templates/<N>/template.tex)." >&2
+  exit 4
+fi
 
-for n in 1 2 3 4 5 6; do
-  src="$TEMPLATES_DIR/$n"
-  if [[ ! -d "$src" ]]; then
-    echo "MISSING: $src"
-    failed+=("$n (missing)")
+# Abort early, once, when none of the required compilers exists.
+needed=""
+for n in $templates; do
+  needed="$needed $(compiler_for "$root/templates/$n/template.tex")"
+done
+needed_unique="$(printf '%s\n' $needed | sort -u | tr '\n' ' ')"
+found_any=0
+for c in $needed_unique; do
+  if have "$c"; then
+    found_any=1
+  fi
+done
+if [ "$found_any" -eq 0 ]; then
+  echo "No LaTeX compiler found on PATH (templates need: ${needed_unique% })." >&2
+  echo "Install MiKTeX (https://miktex.org) or TeX Live (https://tug.org/texlive), then retry." >&2
+  exit 2
+fi
+
+extra_flags=""
+if [ "$(detect_distro)" = "miktex" ]; then
+  extra_flags="--enable-installer"
+fi
+
+tmp_root="$(mktemp -d)"
+trap 'rm -rf "$tmp_root"' EXIT
+
+passed=""
+failed=""
+npass=0
+nfail=0
+total=0
+
+for n in $templates; do
+  total=$((total + 1))
+  src="$root/templates/$n"
+  cmd="$(compiler_for "$src/template.tex")"
+  echo "=== Template $n ($cmd) ==="
+
+  if ! have "$cmd"; then
+    echo "  FAIL: $cmd not on PATH"
+    failed="$failed $n($cmd missing)"
+    nfail=$((nfail + 1))
     continue
   fi
 
-  tmp="$(mktemp -d)"
-  trap 'rm -rf "$tmp"' EXIT
+  tmp="$tmp_root/$n"
+  mkdir -p "$tmp"
+  cp -R "$src"/. "$tmp"/
 
-  cp -r "$src"/. "$tmp/"
-
-  cmd="${COMPILER[$n]}"
-  echo "=== Template $n ($cmd) ==="
-
-  # MiKTeX flags:
-  #   --enable-installer: auto-install missing packages without prompting
-  # Per-pass timeout prevents indefinite hangs if a package install fails silently.
-  flags="-interaction=nonstopmode -halt-on-error --enable-installer"
-  if (cd "$tmp" && timeout 120 "$cmd" $flags template.tex >/dev/null 2>&1 \
-                && timeout 120 "$cmd" $flags template.tex >/dev/null 2>&1); then
-    if [[ -f "$tmp/template.pdf" ]]; then
+  # shellcheck disable=SC2086  # $extra_flags is intentionally word-split (empty or one flag)
+  if (cd "$tmp" \
+      && run_with_timeout 120 "$cmd" -interaction=nonstopmode -halt-on-error $extra_flags template.tex >/dev/null 2>&1 \
+      && run_with_timeout 120 "$cmd" -interaction=nonstopmode -halt-on-error $extra_flags template.tex >/dev/null 2>&1); then
+    if [ -f "$tmp/template.pdf" ]; then
       echo "  PASS"
-      passed+=("$n")
+      passed="$passed $n"
+      npass=$((npass + 1))
     else
       echo "  FAIL: no PDF produced"
-      failed+=("$n (no pdf)")
+      failed="$failed $n(no pdf)"
+      nfail=$((nfail + 1))
     fi
   else
     echo "  FAIL: $cmd error - showing tail of log"
-    tail -n 20 "$tmp/template.log" 2>/dev/null | sed 's/^/    /'
-    failed+=("$n ($cmd error)")
+    log_tail "$tmp/template.log" 20
+    failed="$failed $n($cmd error)"
+    nfail=$((nfail + 1))
   fi
 
   rm -rf "$tmp"
-  trap - EXIT
 done
 
 echo ""
 echo "=== Summary ==="
-echo "Passed: ${#passed[@]}/6 (${passed[*]:-none})"
-if [[ ${#failed[@]} -gt 0 ]]; then
-  echo "Failed: ${failed[*]}"
+passed="${passed# }"
+failed="${failed# }"
+echo "Passed: $npass/$total (${passed:-none})"
+if [ "$nfail" -gt 0 ]; then
+  echo "Failed: $failed"
   exit 1
 fi
 echo "All templates compile cleanly."

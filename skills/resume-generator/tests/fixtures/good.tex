@@ -1,0 +1,30 @@
+%!TEX program = pdflatex
+% Test fixture: a clean minimal resume. lint-tex.sh must report zero errors.
+\documentclass[11pt]{article}
+\usepackage[hidelinks]{hyperref}
+\usepackage{lmodern}
+\newcommand{\entry}[2]{\textbf{#1} \hfill \textit{#2}\\}
+\newcommand*{\kw}[1]{\texttt{#1}}
+\begin{document}
+
+\section*{Ada Quill}
+Email: \href{mailto:ada_quill@example.org}{ada\_quill@example.org} \& web: \url{https://ada_quill.example.org/~ada}
+
+\subsection*{Experience}
+\entry{Staff Engineer, Lumen \& Sons}{2020 -- present}
+\begin{itemize}
+  \item Grew revenue 50\% to \$1M ARR; ticket \#42 closed the C\# migration (file\_name.py)
+  \item Search latency $O(n \log n) \rightarrow O(\log n)$ on 10\,M docs \kw{p99=120ms}
+\end{itemize}
+
+\subsection*{Skills}
+\begin{tabular}{@{}ll@{}}
+  Languages & Rust, Go, Python \\
+  Tools     & Git, Docker \\
+\end{tabular}
+
+\begin{tabular*}{\textwidth}{l@{\extracolsep{\fill}}r}
+  Left & Right \\
+\end{tabular*}
+
+\end{document}

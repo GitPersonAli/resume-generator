@@ -1,21 +1,26 @@
 # knowledge.yaml - resume-generator data source (single source of truth)
 #
-# Replace every <PLACEHOLDER> with your real data.
-# Required fields are marked REQUIRED. Optional sections may be deleted entirely
-# if you don't have entries for them - the resume generator will skip them.
+# Replace every <PLACEHOLDER> with your real data. Placeholders look like
+# <UPPER_CASE_WORDS>, sometimes with digits (<TECH_1>). The generator detects
+# them with the regex  <[A-Z][A-Za-z0-9_]*>  and refuses to generate while a
+# REQUIRED field still holds one. Optional fields left as placeholders are
+# treated as empty (they never reach the PDF), but deleting them keeps the
+# file clean. Optional sections may be deleted entirely.
 #
-# Strings with special characters (#, :, etc.) should be quoted.
+# Strings with special characters (#, :, &, %, etc.) should be quoted.
 # Use ">" for multi-line strings (folded - newlines collapse to spaces).
 # Use "|" for multi-line strings (literal - newlines preserved).
+#
+# Validate at any time:  bash <SKILL_ROOT>/tests/validate-knowledge.sh knowledge.yaml
 #
 # ====== `evidence:` convention (deep-dive pointers) ======
 #
 # Any entry under `experience`, `projects`, `education`, `teaching`,
-# `certifications`, `awards`, etc. may carry an optional `evidence:` list of
-# local paths or URLs that point to richer raw material — a code repo, a
-# project README, a postmortem, a portfolio dir, a thesis PDF, scanned notes,
-# whatever. The resume-generator will NOT inline these into the resume; they
-# stay outside the YAML.
+# `certifications`, `publications`, `events`, etc. may carry an optional
+# `evidence:` list of local paths or URLs that point to richer raw material:
+# a code repo, a project README, a postmortem, a portfolio dir, a thesis PDF,
+# scanned notes, whatever. The resume-generator will NOT inline these into the
+# resume; they stay outside the YAML.
 #
 # What they enable:
 #   1. When a job posting is in context and an item looks highly relevant, the
@@ -24,15 +29,22 @@
 #      tailored to that specific posting.
 #   2. When you bootstrap from a directory (onboarding Branch 1c), the import
 #      sub-agent populates `evidence:` automatically with pointers back to the
-#      dirs/files it summarized — so future deep-dives stay reproducible.
+#      dirs/files it summarized, so future deep-dives stay reproducible.
 #
-# Format — list of strings (paths or URLs). Paths may be absolute or relative
+# Format: list of strings (paths or URLs). Paths may be absolute or relative
 # to the directory containing this knowledge.yaml. Globs are allowed.
+# Secret-looking files (.env, *.pem, *.key, id_*, *credential*) are never read.
 #   evidence:
 #     - "./projects/ml-platform/"        # local code repo
 #     - "~/Documents/ml-eng-self-eval.pdf"
 #     - "https://github.com/me/old-project"
 #     - "./notes/postmortems/*.md"
+#
+# ====== `tags:` / `pin:` (tailoring hints, optional) ======
+#
+# `tags:` free-form labels (e.g. [backend, ml, leadership]) that the generator
+# matches against the job posting when deciding what to keep and what to cut.
+# `pin: true` forces an entry onto every resume regardless of the posting.
 
 # ====== Personal info (REQUIRED) ======
 name: "<YOUR_NAME>"                # REQUIRED
@@ -43,6 +55,15 @@ linkedin: "<YOUR_LINKEDIN_URL>"    # optional - full URL
 github: "<YOUR_GITHUB_URL>"        # optional - full URL
 website: "<YOUR_WEBSITE_URL>"      # optional - full URL
 
+# Only used by European/UK-style templates (4 ModernCV, 5 Wilson). Delete otherwise.
+date_of_birth: "<YYYY_MM_DD_OR_DELETE>"   # optional
+nationality: "<NATIONALITY_OR_DELETE>"    # optional
+photo: "<PATH_TO_PHOTO_OR_DELETE>"        # optional - Template 4 only; jpg/png, path relative to this file
+
+# ====== Output preferences (optional) ======
+language: en            # resume language: en, it, de, fr, es. Section headings are translated; body text is emitted as you wrote it.
+page_limit: "<PAGE_LIMIT_1_OR_2_OR_DELETE>"   # optional - overrides the template's default page budget (1 for templates 2/6, 2 otherwise)
+
 # ====== Profile / summary (optional but recommended) ======
 profile: >
   <YOUR_PROFESSIONAL_SUMMARY_2_TO_4_SENTENCES>
@@ -52,15 +73,19 @@ research_interests:
   - "<RESEARCH_TOPIC_1>"
   - "<RESEARCH_TOPIC_2>"
 
-# ====== Education (REQUIRED - at least one entry) ======
+# ====== Education (REQUIRED - at least one entry with degree + university) ======
 education:
-  - degree: "<DEGREE_NAME_E_G_MSc_in_X>"
-    university: "<UNIVERSITY_NAME>"
-    years: "<YYYY_DASH_YYYY_OR_RANGE>"
+  - degree: "<DEGREE_NAME_E_G_MSc_in_X>"      # REQUIRED
+    university: "<UNIVERSITY_NAME>"           # REQUIRED
+    location: "<CITY_COUNTRY_OR_DELETE>"
+    years: "<YYYY_DASH_YYYY_OR_RANGE>"        # display string, e.g. "2019 - 2021"
+    start: "<YYYY_MM_OR_DELETE>"              # optional ISO date used for sorting, e.g. "2019-09"
+    end: "<YYYY_MM_OR_PRESENT_OR_DELETE>"     # optional, "present" allowed
     details:
       - "<COURSEWORK_GPA_HONORS_LINE_1>"
       - "<COURSEWORK_GPA_HONORS_LINE_2>"
-    # optional `evidence:` — local paths the deep-dive sub-agent can read
+    tags: ["<TAG_1>"]
+    # optional `evidence:` - local paths the deep-dive sub-agent can read
     # for richer thesis context, transcripts, syllabi, etc.
     evidence:
       - "<PATH_TO_THESIS_PDF_OR_TRANSCRIPT_OR_DELETE>"
@@ -73,18 +98,23 @@ education:
         <THESIS_ABSTRACT_OR_GOAL>
       keywords: ["<KEYWORD_1>", "<KEYWORD_2>"]
 
-# ====== Experience (REQUIRED - at least one entry, OR projects must have entries) ======
+# ====== Experience (REQUIRED - at least one entry with title + company, OR projects must have entries) ======
 experience:
-  - title: "<JOB_TITLE>"
-    company: "<COMPANY_NAME>"
+  - title: "<JOB_TITLE>"                      # REQUIRED (for the entry to count)
+    company: "<COMPANY_NAME>"                 # REQUIRED (for the entry to count)
     website: "<COMPANY_URL_OR_DELETE>"
-    years: "<MONTH_YYYY_DASH_MONTH_YYYY_OR_PRESENT>"
+    years: "<MONTH_YYYY_DASH_MONTH_YYYY_OR_PRESENT>"   # display string
+    start: "<YYYY_MM_OR_DELETE>"              # optional ISO date for sorting
+    end: "<YYYY_MM_OR_PRESENT_OR_DELETE>"
     company_location: "<CITY_COUNTRY>"
     work_mode: "<REMOTE_ONSITE_OR_HYBRID>"
+    technologies: ["<TECH_1>", "<TECH_2>"]
     achievements:
       - "<QUANTIFIED_ACHIEVEMENT_1>"
       - "<QUANTIFIED_ACHIEVEMENT_2>"
-    # optional — point to repos, design docs, postmortems, perf reviews
+    tags: ["<TAG_1>", "<TAG_2>"]
+    pin: false
+    # optional - point to repos, design docs, postmortems, perf reviews
     evidence:
       - "<PATH_TO_REPO_OR_DOC_OR_DELETE>"
 
@@ -97,19 +127,25 @@ teaching:
     achievements:
       - "<TEACHING_ACHIEVEMENT_1>"
     link: "<COURSE_OR_CHANNEL_URL_OR_DELETE>"
+    tags: ["<TAG_1>"]
     evidence:
       - "<PATH_TO_COURSE_MATERIALS_OR_DELETE>"
 
-# ====== Projects (REQUIRED if no experience entries) ======
+# ====== Projects (REQUIRED if no experience entries; each counted entry needs a name) ======
 projects:
-  - name: "<PROJECT_NAME>"
+  - name: "<PROJECT_NAME>"                    # REQUIRED (for the entry to count)
     description: >
       <PROJECT_DESCRIPTION>
     technologies: ["<TECH_1>", "<TECH_2>"]
     link: "<PROJECT_URL_OR_DELETE>"
+    years: "<YYYY_OR_RANGE_OR_DELETE>"
+    start: "<YYYY_MM_OR_DELETE>"
+    end: "<YYYY_MM_OR_PRESENT_OR_DELETE>"
     achievements:
       - "<PROJECT_OUTCOME_OR_METRIC>"
-    # optional — point to local repo / writeup / demo dir
+    tags: ["<TAG_1>"]
+    pin: false
+    # optional - point to local repo / writeup / demo dir
     evidence:
       - "<PATH_TO_PROJECT_DIR_OR_DELETE>"
 
@@ -137,15 +173,40 @@ certifications:
 awards:
   - "<AWARD_NAME_AND_YEAR>"
 
-# ====== Events / talks / publications (optional) ======
+# ====== Publications (optional - academic CVs; Template 3 renders a DOI table) ======
+publications:
+  - title: "<PUBLICATION_TITLE>"
+    authors: "<AUTHORS_AS_PRINTED_E_G_Doe_J_Smith_A>"   # your own name is bolded automatically
+    venue: "<JOURNAL_OR_CONFERENCE_NAME>"
+    year: "<YYYY>"
+    type: "<JOURNAL_CONFERENCE_PREPRINT_THESIS_OR_TALK>"
+    doi: "<DOI_OR_DELETE>"
+    url: "<URL_OR_DELETE>"
+    first_author: false
+    evidence:
+      - "<PATH_TO_PDF_OR_DELETE>"
+
+# ====== References (optional - Templates 3 and 5 have referee sections) ======
+references:
+  - name: "<REFEREE_NAME>"
+    position: "<REFEREE_POSITION>"
+    organization: "<REFEREE_ORGANIZATION>"
+    email: "<REFEREE_EMAIL_OR_DELETE>"
+    phone: "<REFEREE_PHONE_OR_DELETE>"
+
+# ====== Interests (optional - short list, used by Templates 4/5/6) ======
+interests:
+  - "<INTEREST_1>"
+
+# ====== Events / talks (optional) ======
 # Free-form section for things that don't fit above. Each entry is an object
 # with at least `name` + `date`; everything else (including `evidence:`) is
 # optional. Delete the section if unused.
 events:
-  - name: "<EVENT_OR_TALK_OR_PUBLICATION_TITLE>"
+  - name: "<EVENT_OR_TALK_TITLE>"
     date: "<MONTH_YYYY>"
-    venue: "<VENUE_OR_PUBLISHER>"
+    venue: "<VENUE_OR_ORGANIZER>"
     description: >
       <ONE_LINE_DESCRIPTION>
     evidence:
-      - "<PATH_TO_SLIDES_PAPER_OR_RECORDING_OR_DELETE>"
+      - "<PATH_TO_SLIDES_OR_RECORDING_OR_DELETE>"

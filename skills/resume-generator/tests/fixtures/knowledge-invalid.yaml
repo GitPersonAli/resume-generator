@@ -1,0 +1,9 @@
+# Test fixture: deliberately broken YAML (unterminated double-quoted scalar).
+# validate-knowledge.sh must exit 2 with STATUS=invalid-yaml and a PARSE_ERROR line.
+
+name: "Broken Person
+email: "broken@example.org"
+
+education:
+  - degree: "BSc"
+    university: "Somewhere"

@@ -1,0 +1,16 @@
+# Test fixture: valid YAML, everything filled except the required `email` key
+# is absent. validate-knowledge.sh must exit 1 with MISSING=email.
+
+name: "Ines Bakker-Oyelaran"
+
+education:
+  - degree: "MA in Linguistics"
+    university: "Sable Coast University"
+    years: "2012 - 2014"
+
+experience:
+  - title: "Localization Engineer"
+    company: "Meridian Lexica"
+    years: "2015 - Present"
+    achievements:
+      - "Shipped translation memory tooling used by 40 translators"

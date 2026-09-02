@@ -1,0 +1,24 @@
+# Test fixture: no `experience` section at all, one project with a name.
+# The gate must PASS (education + at least one of experience/projects).
+
+name: "Tomasz Ferreira-Nakamura"
+email: "tomasz.fn@example.net"
+location: "Porto Alegre, Fictionland"
+
+education:
+  - degree: "BSc in Software Engineering"
+    university: "Riverbend Polytechnic"
+    years: "2020 - 2024"
+
+projects:
+  - name: "Lanternfish"
+    description: >
+      A self-hosted RSS reader with offline sync and full-text search.
+    technologies: ["TypeScript", "SQLite", "Svelte"]
+    link: "https://github.com/tomasz-fn-example/lanternfish"
+    achievements:
+      - "Sub-100 ms search across 50k articles using FTS5"
+
+skills:
+  programming: ["TypeScript", "Python"]
+  tools: ["Docker", "SQLite"]

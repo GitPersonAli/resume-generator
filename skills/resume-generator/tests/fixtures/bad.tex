@@ -1,0 +1,21 @@
+% Test fixture: every lint-tex.sh check should fire at least once here.
+% (No %!TEX magic comment on purpose -> LINT_WARN.)
+\documentclass[11pt]{article}
+\usepackage{lipsum}
+\begin{document}
+
+\section*{John Smith}
+Contact: \href{https://example.org/profile}{profile} % \href without hyperref
+
+Role: <PLACEHOLDER_X>
+
+Worked in Research & Development on the data_pipeline service.
+
+Closed issue #17 and saved $500 on hosting.
+
+\textbf{Unbalanced bold
+\begin{itemize}
+  \item one
+\end{enumerate}
+
+\end{document}

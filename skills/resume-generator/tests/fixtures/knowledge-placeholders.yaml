@@ -1,0 +1,24 @@
+# Test fixture: name/email filled, but education[0].degree still holds a
+# template sentinel (required -> gate FAILS with PLACEHOLDER=education[0].degree)
+# and an experience achievement holds a sentinel (optional -> OPTIONAL_PLACEHOLDER).
+
+name: "Amara Vasquez-Holt"
+email: "amara.vh@example.org"
+phone: "<YOUR_PHONE>"
+
+education:
+  - degree: "<DEGREE_NAME_E_G_MSc_in_X>"
+    university: "Halcyon State University"
+    years: "2015 - 2019"
+
+experience:
+  - title: "Data Analyst"
+    company: "Brightwater Cooperative"
+    years: "June 2019 - Present"
+    achievements:
+      - "<QUANTIFIED_ACHIEVEMENT_1>"
+      - "Automated the weekly reporting pack, saving 6 analyst-hours per week"
+
+projects:
+  - name: "Kestrel Dashboards"
+    technologies: ["<TECH_1>", "Python"]

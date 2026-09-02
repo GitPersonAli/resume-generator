@@ -1,0 +1,76 @@
+# Test fixture: a fully filled knowledge.yaml for an entirely fictional person.
+# Used by run-tests.sh (gate must pass) and e2e.sh scenario (c).
+
+name: "Priya Okonkwo-Lindqvist"
+email: "priya.ol@example.org"
+phone: "+46 70 000 00 00"
+location: "Nordvik, Fictionland"
+linkedin: "https://www.linkedin.com/in/priya-okonkwo-lindqvist-example"
+github: "https://github.com/priya-ol-example"
+
+profile: >
+  Backend engineer with six years of experience building data pipelines and
+  developer tooling for small teams. Comfortable owning a service end to end,
+  from schema design to on-call.
+
+education:
+  - degree: "MSc in Computer Science"
+    university: "Nordvik Institute of Technology"
+    years: "2016 - 2018"
+    details:
+      - "Thesis on incremental view maintenance for streaming joins"
+      - "GPA 4.7 / 5.0"
+  - degree: "BSc in Mathematics"
+    university: "Fjordholm University"
+    years: "2013 - 2016"
+
+experience:
+  - title: "Senior Software Engineer"
+    company: "Glimmerforge Labs"
+    website: "https://glimmerforge.example"
+    years: "March 2021 - Present"
+    company_location: "Nordvik, Fictionland"
+    work_mode: "Hybrid"
+    achievements:
+      - "Cut nightly ETL runtime from 6 h to 40 min by moving 30 batch jobs to an incremental Spark pipeline"
+      - "Led migration of 12 services from a shared MySQL cluster to per-service Postgres with zero downtime"
+      - "Mentored four junior engineers; two promoted within 18 months"
+    evidence:
+      - "./evidence/glimmerforge/"
+  - title: "Software Engineer"
+    company: "Tidewatch Analytics"
+    years: "August 2018 - February 2021"
+    company_location: "Fjordholm, Fictionland"
+    work_mode: "On-site"
+    achievements:
+      - "Built the ingestion service handling 2 M sensor events/day in Go"
+      - "Reduced cloud spend 35% by right-sizing Kubernetes node pools"
+
+projects:
+  - name: "Harbourline"
+    description: >
+      Open-source CLI that lints and formats YAML data pipelines, with a
+      plugin system for custom rules.
+    technologies: ["Rust", "YAML", "GitHub Actions"]
+    link: "https://github.com/priya-ol-example/harbourline"
+    achievements:
+      - "1.2k GitHub stars; adopted by three teams at Glimmerforge"
+
+skills:
+  professional: ["System design", "Technical mentoring", "Incident response"]
+  programming: ["Python", "Go", "Rust", "SQL"]
+  frameworks: ["Spark", "FastAPI", "gRPC"]
+  tools: ["Kubernetes", "Terraform", "Postgres", "Kafka"]
+  languages:
+    - name: "English"
+      level: "Fluent"
+    - name: "Swedish"
+      level: "Native"
+
+certifications:
+  - name: "Certified Kubernetes Administrator"
+    provider: "CNCF"
+    issued: "May 2022"
+
+awards:
+  - "Glimmerforge Engineering Excellence Award, 2023"

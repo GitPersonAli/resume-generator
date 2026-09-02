@@ -1,0 +1,136 @@
+# knowledge.example.yaml - a fully filled, entirely fictional example.
+# Copy it next to your own knowledge.yaml to see what a complete file looks like,
+# or use it as a fixture: it passes the gate (no placeholders in required fields).
+
+name: "Dana Kowalski"
+email: "dana.kowalski@example.com"
+phone: "+39 333 000 0000"
+location: "Turin, Italy"
+linkedin: "https://www.linkedin.com/in/dana-kowalski-example"
+github: "https://github.com/dkowalski-example"
+website: "https://dana-kowalski.example.com"
+
+nationality: "Polish"
+language: en
+
+profile: >
+  Backend and ML engineer with six years of experience building data platforms
+  and inference services for logistics companies. Comfortable owning a service
+  end to end: schema design, Python/Go services, Kubernetes deployments, and
+  the observability that keeps them honest.
+
+education:
+  - degree: "MSc in Computer Engineering"
+    university: "University of Westbridge"
+    location: "Westbridge, Italy"
+    years: "2016 - 2018"
+    start: "2016-09"
+    end: "2018-07"
+    details:
+      - "Final grade 110/110 cum laude"
+      - "Coursework: distributed systems, statistical learning, databases"
+    tags: [ml, systems]
+    thesis:
+      title: "Online learning for demand forecasting in last-mile delivery"
+      status: "Completed"
+      description: >
+        Compared streaming gradient-boosting and recurrent models on three years
+        of parcel-volume data from a regional courier.
+      keywords: ["time series", "online learning", "logistics"]
+  - degree: "BSc in Computer Science"
+    university: "University of Westbridge"
+    years: "2013 - 2016"
+    start: "2013-09"
+    end: "2016-07"
+
+experience:
+  - title: "Senior Backend Engineer"
+    company: "Halcyon Data Labs"
+    website: "https://halcyon.example.com"
+    years: "March 2021 - Present"
+    start: "2021-03"
+    end: "present"
+    company_location: "Turin, Italy"
+    work_mode: "Hybrid"
+    technologies: ["Python", "Go", "PostgreSQL", "Kafka", "Kubernetes", "Terraform"]
+    achievements:
+      - "Designed the event ingestion pipeline (Kafka + Go) that handles 40k messages/s with p99 latency under 120 ms"
+      - "Cut cloud spend 31% by moving batch scoring from always-on VMs to spot-instance Kubernetes jobs"
+      - "Led a team of four through the migration of the billing service from a monolith to three services with zero downtime"
+    tags: [backend, platform, leadership]
+    pin: true
+  - title: "Machine Learning Engineer"
+    company: "Orbital Fern"
+    years: "September 2018 - February 2021"
+    start: "2018-09"
+    end: "2021-02"
+    company_location: "Milan, Italy"
+    work_mode: "Onsite"
+    technologies: ["Python", "PyTorch", "scikit-learn", "Airflow", "AWS"]
+    achievements:
+      - "Shipped a demand-forecasting model that reduced stock-outs 18% across 120 retail sites"
+      - "Built the feature store and Airflow pipelines used by three ML teams"
+    tags: [ml, data]
+
+projects:
+  - name: "queuecast"
+    description: >
+      Open-source library for probabilistic queue-length forecasting, with a
+      FastAPI reference service and Grafana dashboards.
+    technologies: ["Python", "FastAPI", "NumPy", "Docker"]
+    link: "https://github.com/dkowalski-example/queuecast"
+    years: "2022 - Present"
+    start: "2022-01"
+    end: "present"
+    achievements:
+      - "1.2k GitHub stars; adopted by two courier companies in production"
+    tags: [ml, open-source]
+  - name: "pgshadow"
+    description: >
+      CLI that replays production PostgreSQL traffic against a shadow instance
+      to validate schema migrations before release.
+    technologies: ["Go", "PostgreSQL"]
+    link: "https://github.com/dkowalski-example/pgshadow"
+    years: "2020"
+    tags: [backend, databases]
+
+skills:
+  professional: ["System design", "Technical leadership", "Incident response"]
+  programming: ["Python", "Go", "SQL", "Bash"]
+  frameworks: ["FastAPI", "PyTorch", "scikit-learn", "Airflow"]
+  tools: ["Kubernetes", "Terraform", "Kafka", "PostgreSQL", "Grafana"]
+  languages:
+    - name: "Polish"
+      level: "Native"
+    - name: "English"
+      level: "Full professional proficiency"
+    - name: "Italian"
+      level: "Professional working proficiency"
+
+certifications:
+  - name: "Certified Kubernetes Administrator"
+    provider: "Cloud Native Computing Foundation"
+    issued: "May 2023"
+
+awards:
+  - "Best Paper Award, Westbridge Student Research Symposium 2018"
+
+publications:
+  - title: "Streaming demand forecasting for last-mile logistics"
+    authors: "Kowalski, D., Ferri, L."
+    venue: "Workshop on Applied Time Series (WATS)"
+    year: "2019"
+    type: "conference"
+    doi: "10.0000/example.2019.42"
+    first_author: true
+
+interests:
+  - "Trail running"
+  - "Typography"
+
+events:
+  - name: "Feature stores without the platform team"
+    date: "October 2023"
+    venue: "PyCon Italia"
+    description: >
+      Talk on building a minimal feature store with PostgreSQL and Airflow.
