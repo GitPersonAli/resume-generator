@@ -10,6 +10,8 @@
 *.blg
 *.bcf
 *.run.xml
+# ...but the classify-log.sh test fixtures are real files, not artefacts
+!skills/resume-generator/tests/fixtures/log-*.log
 
 # Generated outputs (user data — never commit)
 outputs/

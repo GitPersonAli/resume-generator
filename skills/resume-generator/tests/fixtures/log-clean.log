@@ -1,0 +1,7 @@
+This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023) (preloaded format=pdflatex)
+(./resume.tex
+LaTeX2e <2023-11-01> patch level 1
+(./resume.cls) (./resume.aux)
+Overfull \hbox (3.2pt too wide) in paragraph at lines 40--41
+[1{/usr/share/texlive/texmf-var/fonts/map/pdftex/updmap/pdftex.map}] (./resume.aux) )
+Output written on resume.pdf (1 page, 51234 bytes).

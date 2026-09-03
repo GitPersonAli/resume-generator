@@ -1,0 +1,16 @@
+This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023) (preloaded format=pdflatex)
+ restricted \write18 enabled.
+entering extended mode
+(./resume.tex
+LaTeX2e <2023-11-01> patch level 1
+(./resume.cls
+Document Class: resume 2010/07/10 v0.9 Resume class
+)
+! Undefined control sequence.
+l.42 \sectionn
+              {Experience}
+? 
+! Emergency stop.
+l.42 \sectionn
+              {Experience}
+No pages of output.

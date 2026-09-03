@@ -1,0 +1,15 @@
+This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023) (preloaded format=pdflatex)
+(./resume.tex
+LaTeX2e <2023-11-01> patch level 1
+
+! LaTeX Error: File `ebgaramond.sty' not found.
+
+Type X to quit or <RETURN> to proceed,
+or enter new name. (Default extension: sty)
+
+Enter file name: 
+! Emergency stop.
+<read *> 
+         
+l.5 \usepackage
+               {ebgaramond}^^M

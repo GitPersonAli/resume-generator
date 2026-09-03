@@ -1,0 +1,12 @@
+This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023) (preloaded format=pdflatex)
+(./resume.tex
+LaTeX2e <2023-11-01> patch level 1
+Runaway argument?
+{Senior Engineer \\ Acme \\ 2021--present \begin {itemize} \item Built the thing 
+! File ended while scanning use of \@resumeSubheading.
+<inserted text> 
+                \par 
+<*> resume.tex
+            
+! Emergency stop.
+<*> resume.tex
