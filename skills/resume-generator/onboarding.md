@@ -3,7 +3,7 @@
 You are reading this because the gate in `SKILL.md` detected one of:
 
 - no `knowledge.yaml` in the user's current working directory (Branch 1), or
-- the user explicitly asked to bootstrap entries from directories (Branch 1c), or
+- the user handed over sources (a resume file/URL and/or work directories) in the request (Branch 1 with sources), or
 - `knowledge.yaml` exists but does not parse as YAML (Branch 2b), or
 - it parses but a required field is empty or still holds a `<PLACEHOLDER>` (Branch 2), or
 - the role-aware soft gate flagged gaps and the user chose to fill them (Branch 3).
@@ -30,21 +30,23 @@ Run the validator after **every** write to `knowledge.yaml` and show the result 
 
 ---
 
-## Branch 1 — knowledge.yaml is missing
+## Branch 1 — knowledge.yaml is missing (or sources were handed over)
 
-Tell the user, verbatim formatting:
+Sources are composable: a resume (file, URL, pasted text) fills personal info, education, and employment; work directories fill projects, `evidence:`, and `tags:`. The user can give one, both, or neither.
 
-> No `knowledge.yaml` found in this directory. Three ways to start:
+If no source came with the request, ask, verbatim formatting:
+
+> No `knowledge.yaml` found in this directory. Give me any of these, in one message:
 >
-> 1. **Blank** — I'll drop a template here you fill in
-> 2. **Import** — give me a path to your existing resume (PDF, .tex, .txt, .md, image) or a URL to a hosted resume, and I'll populate the template from it
-> 3. **Bootstrap from work** — point me at one or more directories of your past work (project repos, writeups, talks, design files). I'll walk them, draft a knowledge.yaml describing each, and record `evidence:` pointers so I can re-read them later for deep-dives.
+> 1. **Blank** — I drop a template here and you fill it in
+> 2. **A resume** — a path to your existing resume (PDF, .tex, .txt, .md, image) or a URL to a hosted one; I populate the template from it
+> 3. **Work directories** — one or more folders of past work (project repos, writeups, talks, design files); I walk them, draft an entry per project, and record `evidence:` pointers for later deep-dives
 >
-> Which?
+> 2 and 3 combine ("resume.pdf and ~/work/projects"). Which?
 
-Wait for the user's choice. Do not act before they answer. If the reply is ambiguous, ask once for clarification.
+Wait for the answer. If the reply is ambiguous, ask once for clarification; still unclear → Blank.
 
-### Branch 1a — Blank
+### Branch 1a — Blank (no sources)
 
 1. Copy `<SKILL_ROOT>/assets/knowledge.template.yaml` → `<cwd>/knowledge.yaml` with `cp` (not Read+Write: preserves the file exactly).
 2. Confirm:
@@ -53,55 +55,28 @@ Wait for the user's choice. Do not act before they answer. If the reply is ambig
    > **I can also fill sections incrementally on request.** For example: "fill the projects section from what I tell you about each project" or "ask me questions to populate the experience block."
 3. End the turn. Do not generate a resume.
 
-### Branch 1b — Import
+### Branch 1 with sources — import and/or bootstrap, one turn
 
-1. Ask for the source: file path, URL, or pasted text. Accepted: PDF, `.tex`, `.txt`/`.md`, images (jpg/png, visual extraction), URLs to a hosted resume or personal site.
-   - **LinkedIn profile URLs cannot be fetched** (login wall). Ask the user to export it instead: LinkedIn → Me → View profile → More → Save to PDF, then give the PDF path. The same applies to any page that needs a login.
-2. **Dispatch a sub-agent** to parse. Do not read the source yourself; that defeats the token-isolation point.
-   - `subagent_type`: `general-purpose`, `model`: `sonnet`, `description`: `Parse resume into knowledge.yaml`
-   - `prompt`: the source location, the template path (`<SKILL_ROOT>/assets/knowledge.template.yaml`), the destination (`<cwd>/knowledge.yaml`), and instructions to:
-     - Read the template first to learn the schema (including `tags:`, `start`/`end`, `publications:`, `evidence:`).
-     - Read the source (`Read` for files, `WebFetch` for URLs, vision for images). If a fetch returns a login wall or an empty page, stop and report that instead of guessing.
-     - Map source data into the schema, preserving the template's comments and section headers; fill `years` as written and `start`/`end` in ISO form when dates are unambiguous.
-     - Leave any field not found in the source as its `<PLACEHOLDER>`; delete optional blocks the source has nothing for. Never invent.
-     - Write `<cwd>/knowledge.yaml`. Return: fields populated, fields still holding placeholders, ambiguities.
-3. Run the validator. Summarize:
-   > Imported. Filled: [list]. Still missing (placeholders remain): [list from `MISSING=`/`PLACEHOLDER=`]. Optional placeholders left: [count].
+1. **Validate sources first** (main). A LinkedIn profile URL cannot be fetched (login wall): ask for the export instead (LinkedIn → Me → View profile → More → Save to PDF). Each directory must exist (`ls`/`stat`); missing or unreadable → tell the user and ask before proceeding. Optional: which dirs are a job's work (→ `experience`) vs personal work (→ `projects`); default `projects`.
+2. If `<cwd>/knowledge.yaml` does not exist, `cp` the template there now (personal-info placeholders stay until a source fills them).
+3. **Dispatch every source handler in one message** (parallel). Handlers return YAML **fragments**, never the whole file; main merges.
+
+   **Resume handler** (one, when a resume was given): `subagent_type: general-purpose`, `model: sonnet`, `description: Parse resume into knowledge fragments`. Prompt: the source (`Read` for files, `WebFetch` for URLs, vision for images), the template path (`<SKILL_ROOT>/assets/knowledge.template.yaml`) to learn the schema (`tags:`, `start`/`end`, `publications:`, `evidence:`), and instructions to map the source into the schema, fill `years` as written and `start`/`end` in ISO form when unambiguous, leave anything not found as its `<PLACEHOLDER>`, omit optional blocks the source has nothing for, never invent, and if a fetch returns a login wall or an empty page stop and report. Return: a YAML fragment with the populated top-level keys (`name`, `email`, …, `education`, `experience`, `skills`, …), the list of fields still holding placeholders, and ambiguities.
+
+   **Directory handler** (one per top-level path): `subagent_type: general-purpose`, `model: sonnet`, `description: Bootstrap knowledge entries from <dir>`. Prompt: the dir path, the template path, and instructions to read the template first (`experience`, `projects`, `events`, `tags:`, `evidence:` conventions); walk with `Glob`/`Read`, skipping `.git`, `node_modules`, `__pycache__`, `dist`, `build`, `target`, `.venv`, `vendor`, `.next`, `.cache`, binaries and files > 1 MB; **never open** `.env*`, `*.pem`, `*.key`, `*.p12`, `id_rsa*`, `id_ed25519*`, `*.kdbx`, or any file whose name contains `secret`, `credential`, `token`, or `password`, and never copy anything that looks like a key or password into the output; decide one-project vs many (a README/package.json/Cargo.toml/pyproject.toml/.git at the root → one project; many subdirs each with their own → many); per project draft `name` (README title, package name, or dir name), `description` (2-3 sentences), `technologies` (manifests, extensions, framework markers), `tags` (2-4 labels such as backend, ml, frontend, data, infra), `start`/`end` from git history or file dates when clear (else omit), `achievements: []` (never invent quantifications), `evidence` (absolute project root plus standout sub-paths such as `docs/postmortem.md`, `RESULTS.md`), `link` if a remote URL is detected. Return: a YAML fragment with just the new entries under `projects:` (or `experience:` when told), one line per entry, and the list of dirs skipped with reasons.
+
+4. **Merge** (main, `Edit` into `<cwd>/knowledge.yaml`), fixed precedence:
+   - Resume fragment fills `name`, `email`, `phone`, `links`, `profile`, `education`, `experience`, `skills`, `languages`, `certifications`, `publications`: a value replaces a placeholder, never an existing real value.
+   - Directory fragments fill `projects` (or `experience` when the user said so), `evidence:`, `tags:`.
+   - Same entry in both (matched by `name`, or `title` + `company`, case-insensitive): keep the resume's dates and wording, union `technologies`, add the directory's `evidence:` and `tags:`. Never duplicate an entry.
+   - Keep the template's comments and section order.
+5. Run the validator once. Summarize:
+   > Set up `knowledge.yaml` from <N> source(s). Filled: [list]. Drafted <count> projects / <count> experience entries with `evidence:` and `tags:`. Still missing (placeholders remain): [from `MISSING=`/`PLACEHOLDER=`]. Optional placeholders left: [count]. Achievements on bootstrapped entries are blank: fill them yourself or tell me and I'll write them in.
    >
-   > **I can also fill sections incrementally on request.** Re-invoke me when ready to generate.
-4. End the turn.
-
-### Branch 1c — Bootstrap from work
-
-The user supplies one or more local directories (or repo URLs). For each top-level path, **dispatch a sub-agent** to walk it, infer project boundaries, and draft entries. Do not read the dirs yourself.
-
-1. Ask (if not already provided):
-   > Give me the directory path(s), one per line or comma-separated. Each is treated as a single project (if it looks like one repo/artifact) or a parent of several (if it holds many standalone subdirs); I decide per dir. Noise dirs (`.git`, `node_modules`, `__pycache__`, `dist`, `build`, `target`, `.venv`, `vendor`) and anything that looks like a secret (`.env`, keys, credentials) are skipped.
-   >
-   > Optional: tell me which dirs are a job's work (→ `experience`) vs personal work (→ `projects`). Default is `projects`.
-2. Validate each path exists (`ls`/`stat`). Missing or unreadable → tell the user and ask before proceeding.
-3. Dispatch one sub-agent per top-level path, all in **one message** (parallel):
-   - `subagent_type`: `general-purpose`, `model`: `sonnet`, `description`: `Bootstrap knowledge entries from <dir>`
-   - `prompt`: the dir path, the template path, and instructions to:
-     - Read the template first (`experience`, `projects`, `events`, `tags:`, `evidence:` conventions).
-     - Walk with `Glob`/`Read`. Skip `.git`, `node_modules`, `__pycache__`, `dist`, `build`, `target`, `.venv`, `vendor`, `.next`, `.cache`, binaries and files > 1 MB. **Never open** `.env*`, `*.pem`, `*.key`, `*.p12`, `id_rsa*`, `id_ed25519*`, `*.kdbx`, or any file whose name contains `secret`, `credential`, `token`, or `password`; never copy anything that looks like a key or password into the output.
-     - Decide one-project vs many: a README/package.json/Cargo.toml/pyproject.toml/.git at the root → one project; many subdirs each with their own → many.
-     - Per project draft an entry with: `name` (README title, package name, or dir name), `description` (2-3 sentences from README + structure), `technologies` (manifests, extensions, framework markers), `tags` (2-4 labels such as backend, ml, frontend, data, infra), `start`/`end` from git history or file dates when clear (else omit), `achievements: []` (never invent quantifications), `evidence` (absolute project root plus standout sub-paths such as `docs/postmortem.md`, `RESULTS.md`), `link` if a remote URL is detected.
-     - Return: a YAML fragment with just the new entries (not the full file), one line per entry, and the list of dirs skipped with reasons.
-4. Merge fragments into `<cwd>/knowledge.yaml`:
-   - No file yet → copy the template first, then insert the entries into their sections, leaving personal-info placeholders intact.
-   - File exists → `Edit` to append into the right sections; match existing entries by `name` and don't duplicate.
-5. Run the validator. Summarize:
-   > Bootstrapped from `<N>` dir(s). Drafted: `<count>` projects, `<count>` experience entries; `evidence:` and `tags:` recorded for all of them.
-   >
-   > **Still missing**: [from the validator: personal info, etc.], plus achievements/quantifications on each entry (left blank; fill them yourself or tell me and I'll write them in).
+   > If this directory is a git repo, add `knowledge.yaml`, `outputs/`, and `.resume-cache/` to `.gitignore`.
    >
    > Re-invoke me when ready. With a job posting I'll deep-dive the relevant `evidence:` for sharper details.
 6. End the turn.
-
-### Branch 1d — neither / unclear
-
-Re-ask once. Still unclear → default to Blank.
 
 ---
 
@@ -138,7 +113,7 @@ The validator exited 2 with `PARSE_ERROR=<line>:<col>: <message>`.
 
 ## Branch 3 — Targeted fill (role-aware soft gate)
 
-Entered when the hard gate passed but the job-posting analysis flagged optional fields that matter for this role.
+Entered from `SKILL.md` Step 3 (gaps no evidence could answer) or from generation Step 4.6 (deferred gaps the deep-dive left `still-open`, presented with what the evidence did say). The hard gate has already passed.
 
 1. List each gap with the role-specific reason:
    > For this role, these fields would strengthen your resume but are empty or placeholder:
@@ -150,7 +125,7 @@ Entered when the hard gate passed but the job-posting analysis flagged optional 
    > 2. **Proceed without**: I'll generate as-is; the screening will see the gaps the posting marked as required
 2. Wait for the choice.
 3. **Fill** → same write-back loop as Branch 2 (validator after each write), then re-run the role-aware scan.
-4. **Proceed without** → echo the accepted gaps so they're recorded, return to `SKILL.md` to dispatch `generation.md`, and pass the gap list along; generation reports it again in `report.md`.
+4. **Proceed without** → echo the accepted gaps so they're recorded, return to where this branch was entered from (`SKILL.md` Step 4, or generation Step 4.6), and pass the gap list along; generation reports it again in `report.md`.
 
 ---
 
@@ -161,4 +136,4 @@ Entered when the hard gate passed but the job-posting analysis flagged optional 
 - Never start LaTeX generation while in onboarding; control returns to `SKILL.md` first.
 - After every write to `knowledge.yaml`, run the validator and show the result.
 - The skill folder (`<SKILL_ROOT>`) is read-only. Copy out of it, never into it.
-- Sub-agents that walk directories never open secret-looking files and never write outside `<cwd>/knowledge.yaml`.
+- Sub-agents that walk directories never open secret-looking files and never write anything: they return fragments; only main writes `knowledge.yaml`, and only through the merge rules above.

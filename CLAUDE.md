@@ -21,11 +21,11 @@ The skill itself is read-only from the user's perspective. All generated outputs
 
 Control flows between markdown files inside `skills/resume-generator/`, not code:
 
-1. **`SKILL.md`** — entry, gate, dispatch. Parses `$ARGUMENTS`, checks for `<cwd>/knowledge.yaml`, runs `tests/validate-knowledge.sh` (the hard gate: `name`, `email`, ≥1 `education` entry with degree+university, ≥1 `experience` entry with title+company or ≥1 `projects` entry with name; no sentinel in those), runs the role-aware soft gate when a job posting is supplied, then dispatches. Also intercepts explicit "bootstrap from dir(s)" requests and routes them to onboarding Branch 1c regardless of yaml state.
-2. **`onboarding.md`** — loaded when the gate fails (or the user asks to bootstrap). Branches: 1a blank-template copy, 1b import from an existing resume (sub-agent), **1c bootstrap from work directories** (parallel sub-agents per dir, drafts entries with `evidence:` + `tags:`), 1d fallback, 2 mid-fill repair, **2b invalid-YAML repair**, 3 targeted fill for role gaps. Every write is followed by the validator.
-3. **`generation.md`** — loaded when the gate passes. Steps: template resolve (then read `templates/<N>/NOTES.md`) → preflight → posting analysis → output dir → asset copy → deep-dive (conditional) → `resume.tex` → lint (`tests/lint-tex.sh`) + content review with a coverage matrix → build (`tests/build.sh`) → QA gate (page budget, leaks, PNG look) → persist (`tailored.yaml`, `report.md`, `outputs/index.md` row) → cover letter (optional).
+1. **`SKILL.md`** — entry, gate, dispatch. Parses `$ARGUMENTS`, runs `tests/env-probe.sh` first (compiler present? else ask install-or-source-only once, before anything else), resolves the mode (`generate` / `--refresh SLUG` / `--rebuild SLUG` / `--cover-letter --for SLUG`), routes handed-over sources (a resume file/URL and/or work dirs) to onboarding Branch 1 with sources regardless of yaml state, checks for `<cwd>/knowledge.yaml`, runs `tests/validate-knowledge.sh` (the hard gate: `name`, `email`, ≥1 `education` entry with degree+university, ≥1 `experience` entry with title+company or ≥1 `projects` entry with name; no sentinel in those), runs the role-aware soft gate when a job posting is supplied (deferring gaps an `evidence:` entry could answer to generation Step 4.6), then dispatches.
+2. **`onboarding.md`** — loaded when the gate fails (or sources were handed over). Branches: 1a blank-template copy, **Branch 1 with sources** (resume import and/or per-directory bootstrap as parallel sub-agents that return YAML fragments; main merges by fixed precedence, drafts carry `evidence:` + `tags:`; one validator run, one turn), 2 mid-fill repair, **2b invalid-YAML repair**, 3 targeted fill for role gaps (entered from the gate or from generation Step 4.6). Every write is followed by the validator.
+3. **`generation.md`** — loaded when the gate passes. Steps: template resolve (then read `templates/<N>/NOTES.md`) → preflight (skipped when `SOURCE_ONLY`) → posting analysis (reused) → output dir → asset copy → deep-dive (cache-first) → Step 4.6 deferred gaps (one question at most) → **Step 5a plan: `tailored.yaml` with relevance/keep/reason, page-budget estimate, coverage matrix** → Step 5b render `resume.tex` from the plan → lint (`tests/lint-tex.sh`) + coverage check → **Step 7 `tests/qa-gate.sh`** (runs `build.sh`, applies budget + leak rules; compile failures go through `tests/classify-log.sh` before any sub-agent) → Step 7.5 PNG look → persist (`tailored.yaml`, `posting.json`, `report.md`, `outputs/index.md` row) → cover letter (optional). Re-entry modes: refresh (`posting.json`, no re-fetch), rebuild (lint + qa-gate only), letter-only.
 
-On-demand sub-docs, loaded only when `generation.md` says so: **`deep-dive.md`** (Step 4.5, re-reads `evidence:` pointers via parallel sub-agents), **`variants.md`** (several resumes in one request: no worktree isolation, preflight and every user question resolved in main before fan-out, one `index.md` writer), **`cover-letter.md`** (Step 9).
+On-demand sub-docs, loaded only when `generation.md` says so: **`deep-dive.md`** (Step 4.5, two-phase: cached posting-agnostic extraction via parallel sub-agents on a miss, inline tailoring), **`variants.md`** (several resumes in one request: no worktree isolation, preflight and every user question resolved in main before fan-out, one `index.md` writer), **`cover-letter.md`** (Step 9).
 
 Editing any of these docs changes runtime behavior. Read them all before structural edits; they reference each other by section name and by script contract. The DOT graph in `SKILL.md` is the source of truth for control flow; keep it in sync with prose changes.
 
@@ -35,8 +35,8 @@ Editing any of these docs changes runtime behavior. Read them all before structu
 
 Any entry under `experience`, `projects`, `education`, `teaching`, `certifications`, `publications`, `events` may carry an optional `evidence:` list of local paths or URLs pointing to richer raw material. Two flows consume these:
 
-- **Onboarding Branch 1c** populates `evidence:` automatically when bootstrapping from a work dir.
-- **Generation Step 4.5 / `deep-dive.md`** dispatches one parallel sub-agent per high-relevance entry (cap 5) to re-read the evidence and return `achievements_proposed`, `technologies_to_add`, `citations`, `warnings`. Deltas are merged into the in-memory view and written to `outputs/<slug>/tailored.yaml`, never back to `<cwd>/knowledge.yaml`.
+- **Onboarding Branch 1 with sources** populates `evidence:` automatically when bootstrapping from a work dir.
+- **Generation Step 4.5 / `deep-dive.md`** is two-phase. Phase 1 (Extract) dispatches one parallel sub-agent per high-relevance entry (cap 5) **only on a cache miss** and returns posting-agnostic `facts` (each with a `citation`), `technologies`, `fingerprints`, `warnings`; main caches them in `<cwd>/.resume-cache/evidence/<entry-slug>.json` (freshness via `find -newer`; `--no-cache` forces). Phase 2 (Tailor) runs inline: picks facts for the posting, merges deltas into the in-memory view, reports which deferred gaps are `addressed` / `still-open`. Deltas land in `outputs/<slug>/tailored.yaml`, never back in `<cwd>/knowledge.yaml`. Variants warm the cache in main before fan-out.
 
 `evidence:` are READ-ONLY pointers. Nothing in the skill writes to those locations, and sub-agents never open secret-looking files (`.env*`, `*.pem`, `*.key`, `id_*`, names containing secret/credential/token/password).
 
@@ -75,7 +75,10 @@ All scripts are bash 3.2-compatible (stock macOS): no `declare -A`, `mapfile`, `
 | `validate-knowledge.sh <yaml>` | the gate; python3+PyYAML, grep-only fallback | 0 ok, 1 missing, 2 invalid-yaml, 3 not-found, 4 args, 6 no-parser |
 | `preflight.sh <N> [install]` | smoke-compile first, then distro detection + install hints; install mode only for MiKTeX/TeX Live | 0 ok, 1 missing (auto-installable), 2 no-compiler, 3 no-distro/manual, 4 args, 5 install-failed |
 | `lint-tex.sh <file.tex>` | deterministic lint: escapes, braces, environments, placeholders, sample-data leaks (`leak-strings.txt`), hyperref | 0 ok, 1 errors |
-| `build.sh <dir> [--template N] [--compiler X] [--file f.tex] [--no-render]` | latexmk or two passes; `PAGES`, `OVERFULL`, `PLACEHOLDER_LEAK`, `LEAK=`, `UNRESOLVED_REFS`, `TEXT_EXTRACT`, `PNG` | 0 ok, 1 compile-failed, 2 no-compiler, 4 args |
+| `build.sh <dir> [--template N] [--compiler X] [--file f.tex] [--no-render]` | latexmk or two passes; `PAGES`, `OVERFULL`, `PLACEHOLDER_LEAK`, `LEAK=`, `UNRESOLVED_REFS`, `TEXT_EXTRACT`, `PNG`; called by `qa-gate.sh` | 0 ok, 1 compile-failed, 2 no-compiler, 4 args |
+| `env-probe.sh` | entry-time probe: compilers, latexmk, poppler, python3+PyYAML, distro; builtins only, works with an empty PATH | 0 ok, 2 no-compiler, 4 args |
+| `qa-gate.sh <dir> --template N [--page-limit L] [--experience-years Y] [--file f.tex] [--allow S]... [--from build.out]` | runs `build.sh`, echoes its keys, applies the page budget (1/1/2/2/2/1; template 2 → 2 above 8 years; `--file` other than resume.tex → 1) and leak rules: `BUDGET`, `FAIL=`, `WARN=`, `STATUS=pass|fail` | 0 pass, 1 fail, 2 no-compiler, 3 not-found, 4 args, 5 compile-failed |
+| `classify-log.sh <file.log>` | first `!` error → `CLASS=`, `LINE=`, `TOKEN=`, `HINT=` (missing-class/package/file, font-not-found, undefined-control-sequence, undefined-environment, missing-begin-document, missing-dollar, extra-brace, runaway-argument, unknown-option, package-error) | 0 classified, 1 unknown, 3 not-found, 4 args, 5 no-error |
 | `compile-all.sh` | smoke-compile every template (discovers `templates/*/template.tex`) | 0 all pass, 1 failures, 2 no compiler |
 | `run-tests.sh` | script unit tests with fixtures, no TeX needed | 0/1 |
 | `e2e.sh` | manual gate scenarios through `claude -p --plugin-dir .` (needs API access) | 0/1, skips without `claude` |
@@ -90,7 +93,7 @@ docker run --rm -v "$PWD":/work -w /work texlive/texlive:latest bash skills/resu
 
 ## Sub-agent dispatch rules
 
-- **Dispatch sub-agent**: parsing source documents (Branch 1b import), fetching + analysing a job posting given as URL or file path, walking dirs (Branch 1c, deep-dive), diagnosing a verbose `resume.log`, building parallel variants.
+- **Dispatch sub-agent**: parsing source documents (onboarding Branch 1 with sources), fetching + analysing a job posting given as URL or file path, walking dirs (Branch 1 with sources; deep-dive Phase 1 on a cache miss only), diagnosing a `resume.log` that `classify-log.sh` returned `CLASS=unknown` for, building parallel variants.
 - **Inline (no sub-agent)**: pasted-text job postings, lint/content review of generated `.tex`, everything that needs the user.
 - Sub-agents cannot ask the user anything; every decision (template, install consent, gap fill, overwrite) is resolved in main first. Variants never use `isolation: worktree` (gitignored `knowledge.yaml` would be missing and the PDFs would vanish with the worktree).
 
@@ -103,7 +106,9 @@ The reasoning everywhere: dispatch only when it isolates raw content from main; 
 - Output slugs are lowercase-kebab-case; collision policy is `-v2`/`-v3`, overwrite only after asking.
 - Compiler comes from the `%!TEX program` marker (3 and 5 = xelatex). `build.sh` compiles twice or via latexmk.
 - When copying template assets, preserve directory case (`Fonts/` vs `fonts/`).
-- Post-compile QA: page budget (yaml `page_limit`, else 1 for templates 1/2/6, 2 for 3/4/5), zero placeholder/sample leaks, PNG viewed once.
+- Post-compile QA is `tests/qa-gate.sh` (page budget: yaml `page_limit`, else 1 for templates 1/2/6 with template 2 → 2 above 8 years, 2 for 3/4/5; zero placeholder/sample leaks; `--allow` for verified strings), then the PNG viewed once. Never call `build.sh` directly from Step 7.
+- `tailored.yaml` is the plan and is written before `resume.tex`; trimming edits the plan (`keep: false`), never LaTeX by hand.
+- `<cwd>/.resume-cache/` is the only write outside `outputs/` and `knowledge.yaml`; `posting.json` lives inside the output dir.
 
 ## Plugin metadata
 

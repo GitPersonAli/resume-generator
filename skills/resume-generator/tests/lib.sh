@@ -29,7 +29,11 @@ if [ -n "${RG_LIB_LOADED:-}" ]; then
 fi
 RG_LIB_LOADED=1
 
-RG_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Resolved without `dirname` so env-probe.sh can source this file under an empty PATH.
+case "${BASH_SOURCE[0]}" in
+  */*) RG_LIB_DIR="$(cd "${BASH_SOURCE[0]%/*}" && pwd)" ;;
+  *)   RG_LIB_DIR="$(pwd)" ;;
+esac
 
 # Placeholder sentinel regex shared by the gate validator, the lint and build.sh.
 RG_SENTINEL_RE='<[A-Z][A-Za-z0-9_]*>'

@@ -1,7 +1,7 @@
 {
   "name": "resume-generator",
   "description": "Generate tailored LaTeX resumes, PDFs, and cover letters from a knowledge.yaml: six bundled templates (graduate, industry, academic, European, UK-style, minimal), role-aware tailoring from job postings, deterministic gate/lint/build checks.",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "author": {
     "name": "Alion",
     "email": "94344616+GitPersonAli@users.noreply.github.com"

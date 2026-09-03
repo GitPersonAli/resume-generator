@@ -1,6 +1,10 @@
 # Cover letter — companion to a generated resume
 
-Loaded when the user asks for a cover letter (`--cover-letter`, "write a cover letter for this posting"). Requires the gate to have passed and a job posting analysis; if there is no posting, ask for it, or at minimum company + role + one reason the user wants this job. Usually runs after a resume was built into `<dir>`. If no resume exists yet and the user wants only the letter, create `<dir>` per generation Step 3 and skip the resume.
+Loaded when the user asks for a cover letter (`--cover-letter`, "write a cover letter for this posting", "cover letter for the Stripe one"). Requires the gate to have passed and a posting analysis. Resolution order for `<dir>` and the analysis:
+
+1. A resume was just built in this run → `<dir>` and the analysis are in context.
+2. `--for <slug>` or a named earlier application → `<dir>` = `<cwd>/outputs/<slug>/` (slug rules in generation "Re-entry modes"); read `<dir>/posting.json` for the analysis and `<dir>/tailored.yaml` for the coverage matrix and the rendered facts. No `posting.json` → use the posting section of `report.md`, else ask.
+3. Nothing yet and no posting → ask for the posting, or at minimum company + role + one reason the user wants this job; create `<dir>` per generation Step 3 and skip the resume.
 
 ## Content rules
 
@@ -22,8 +26,8 @@ Loaded when the user asks for a cover letter (`--cover-letter`, "write a cover l
 
   ```bash
   bash <SKILL_ROOT>/tests/lint-tex.sh <dir>/cover-letter.tex
-  bash <SKILL_ROOT>/tests/build.sh <dir> --file cover-letter.tex
+  bash <SKILL_ROOT>/tests/qa-gate.sh <dir> --template <N> --file cover-letter.tex --page-limit 1
   ```
 
-  Fix `LINT_ERROR=` lines first. `PAGES` must be 1; if it isn't, cut the context paragraph, then tighten the evidence paragraph. View the PNG once (signature block on the page, no orphan line).
+  Fix `LINT_ERROR=` lines first. `FAIL=pages:` → cut the context paragraph, then tighten the evidence paragraph, re-run. Exit 5 → `classify-log.sh <dir>/cover-letter.log` as in generation Step 7. View the PNG once (signature block on the page, no orphan line).
 - Add the letter's PDF path to `report.md` and to the final message. No extra row in `outputs/index.md`; the resume row covers the application.

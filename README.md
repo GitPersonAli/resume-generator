@@ -9,25 +9,32 @@ Model-invoked, so you can just talk:
 > tailor my resume for a backend SWE role at Stripe, and write a cover letter
 > import my old resume.pdf and set up a knowledge.yaml first
 > build a knowledge.yaml from ~/work/projects
+> import resume.pdf and build the rest from ~/work/projects
+> redo the Stripe one, I updated knowledge.yaml
+> I edited the tex by hand, rebuild the Stripe one
+> cover letter for the Stripe one
 ```
 
 Or call it directly as a slash command:
 
 ```text
 /resume-generator:resume-generator https://jobs.example.com/123 --template 2 --cover-letter
+/resume-generator:resume-generator --refresh stripe-backend-swe-2026
 ```
 
-Claude routes through onboarding (if `knowledge.yaml` is missing, invalid, or partially filled) and generation (when ready), lints the LaTeX, compiles, checks page count and leaks, looks at page 1, and leaves everything in `<cwd>/outputs/<role-slug>/`:
+Claude routes through onboarding (if `knowledge.yaml` is missing, invalid, or partially filled) and generation (when ready), plans the content (`tailored.yaml`), renders and lints the LaTeX, compiles through a scripted QA gate (page budget, leaks), looks at page 1, and leaves everything in `<cwd>/outputs/<role-slug>/`:
 
 ```
 outputs/stripe-backend-swe-2026/
 ├── resume.pdf        # the deliverable
 ├── resume.tex        # regenerate by hand if you like
 ├── report.md         # template choice, coverage matrix vs the posting, what was cut, QA numbers
-├── tailored.yaml     # the exact data that was rendered (never written back to knowledge.yaml)
+├── tailored.yaml     # the plan that was rendered: relevance, keep/cut reasons, coverage (never written back to knowledge.yaml)
+├── posting.json      # the structured posting analysis; refresh, rebuild and cover-letter-later reuse it
 ├── cover-letter.pdf  # when requested
 └── resume-p1.png     # page-1 render used for the visual check
 outputs/index.md      # one row per application you generated
+.resume-cache/evidence/   # facts extracted from your evidence: pointers, with citations; safe to delete
 ```
 
 ## Install
@@ -155,7 +162,7 @@ resume-generator/                          # plugin root
         ├── deep-dive.md  variants.md  cover-letter.md   # loaded on demand
         ├── assets/                        # knowledge template + example, heading translations, cover-letter template
         ├── templates/<1-6>/               # LaTeX sources, each with NOTES.md; LICENSES.md
-        └── tests/                         # validate-knowledge, preflight, lint-tex, build, compile-all, run-tests, e2e
+        └── tests/                         # env-probe, validate-knowledge, preflight, lint-tex, qa-gate, classify-log, build, compile-all, run-tests, e2e
 ```
 
 See [CLAUDE.md](CLAUDE.md) for architecture details.
@@ -175,7 +182,7 @@ When iterating on the skill prompts, run Claude Code with `claude --plugin-dir .
 
 ## Privacy
 
-The skill operates entirely locally. `knowledge.yaml` (your personal data) and `outputs/` are git-ignored and never leave your machine. Directory walks and `evidence:` reads skip secret-looking files (`.env`, keys, credentials).
+The skill operates entirely locally. `knowledge.yaml` (your personal data), `outputs/` and `.resume-cache/` are git-ignored and never leave your machine. Directory walks and `evidence:` reads skip secret-looking files (`.env`, keys, credentials).
 
 ## License
 

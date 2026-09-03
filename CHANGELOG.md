@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.4.0 — 2026-09-03
+
+### Changed
+- Entry runs `tests/env-probe.sh` first: a missing TeX compiler is raised before any other question (install, or source-only).
+- Generation plans before it renders: `tailored.yaml` (relevance, keep/cut with reasons, page-budget estimate, coverage matrix) is written in Step 5a and `resume.tex` is rendered from it in Step 5b; page-budget trimming edits the plan and re-renders instead of editing LaTeX.
+- Step 7 is the scripted `tests/qa-gate.sh` (runs `build.sh`, applies the page budget and leak rules, `FAIL=`/`WARN=` lines); compile failures go through `tests/classify-log.sh` and only `CLASS=unknown` reaches a diagnosis sub-agent.
+- Deep-dive is two-phase: posting-agnostic fact extraction cached in `<cwd>/.resume-cache/evidence/` (freshness via `find -newer`, `--no-cache` to force), posting-specific tailoring inline. Variants warm the cache in main before fan-out.
+- The soft gate defers gaps an `evidence:` entry could answer; generation Step 4.6 asks only about what the deep-dive left open.
+- Onboarding sources compose: a resume file/URL and work directories in one turn (parallel sub-agents return fragments, main merges by fixed precedence, one validator run). Branches 1b/1c/1d folded into "Branch 1 with sources".
+- `lib.sh` resolves its own directory without `dirname` (works under an empty PATH).
+
+### Added
+- `posting.json` in every output dir; re-entry modes `--refresh SLUG` (re-tailor after `knowledge.yaml` edits, no re-fetch), `--rebuild SLUG` (lint + build + QA on a hand-edited `resume.tex`), `--cover-letter --for SLUG` (letter for an existing application). `--no-cache`.
+- Scripts `env-probe.sh`, `qa-gate.sh`, `classify-log.sh` with `run-tests.sh` cases and log fixtures.
+- `docs/FLOW.md`: current flow and the suggestions this release implements, as mermaid; `docs/superpowers/plans/` implementation plan.
+
 ## 0.3.0 — 2026-09-02
 
 ### Fixed

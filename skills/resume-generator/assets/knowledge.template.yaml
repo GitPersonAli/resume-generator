@@ -27,7 +27,7 @@
 #      generator dispatches a deep-dive sub-agent to read the `evidence:` and
 #      return sharper achievements / quantifications / tech-stack details
 #      tailored to that specific posting.
-#   2. When you bootstrap from a directory (onboarding Branch 1c), the import
+#   2. When you bootstrap from a directory (onboarding Branch 1 with sources), the import
 #      sub-agent populates `evidence:` automatically with pointers back to the
 #      dirs/files it summarized, so future deep-dives stay reproducible.
 #

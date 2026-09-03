@@ -11,10 +11,24 @@ Sub-docs loaded on demand from here: `variants.md` (several resumes in one reque
 ## Inputs you should already have
 
 - `knowledge.yaml` content (read once at the gate; re-read if it changed since) plus the validator's `OPTIONAL_PLACEHOLDER=` lines
-- Job posting analysis, if a posting was given (pasted text analysed inline, or the analyser sub-agent's return)
-- Optional: explicit template number, `--cover-letter`, `--skip-preflight`, the soft-gate gap list
+- The `env-probe.sh` lines from `SKILL.md` Step 1: `SOURCE_ONLY=yes|no` (decided at entry when no compiler was found), `PYYAML=`, `PDFTOTEXT=`, `PDFTOPPM=`
+- The mode: `generate` (default), `refresh <slug>`, `rebuild <slug>`, or `letter-only <slug>` (see "Re-entry modes")
+- Job posting analysis, if a posting was given (pasted text analysed inline, or the analyser sub-agent's return), or the saved `outputs/<slug>/posting.json` in refresh / letter-only mode
+- Optional: explicit template number, `--cover-letter`, `--skip-preflight`, the soft-gate gap list split into **asked** (user answered fill/proceed) and **deferred** (an `evidence:` entry may answer them; Step 4.6)
 
 **Several postings or templates in one request?** Finish reading this file, then **read `<SKILL_ROOT>/variants.md`** before doing any work.
+
+## Re-entry modes
+
+Every output dir carries `posting.json` and `tailored.yaml` (Step 8), so later requests about the same application never re-fetch or re-ask.
+
+| Mode | Trigger | What runs |
+|---|---|---|
+| **refresh** `<slug>` | `--refresh <slug>`, "redo the Stripe one after my edits to knowledge.yaml" | `<dir>` = `<cwd>/outputs/<slug>/`. Read `<dir>/posting.json` (analysis + template) and the previous `tailored.yaml` (for reference only). Ask the Step 3 overwrite-or-`-v2` question once. Then Steps 4 → 8 on the current `knowledge.yaml`: no template question, no fetch, no preflight if one passed this session. `posting.json` missing (pre-0.4 output) → use the posting section of `report.md`, and if that is too thin ask for the posting again. |
+| **rebuild** `<slug>` | `--rebuild <slug>`, "I edited the tex by hand, rebuild it" | Step 6a on the existing `<dir>/resume.tex` (fix only what lint flags, and say so), Step 7 (`qa-gate.sh`), Step 7.5. Then replace the QA numbers block in `report.md`, update the `Pages` cell of the `index.md` row, and report. Never re-plan or re-render; `tailored.yaml` is left as is with a `# resume.tex edited by hand after this plan` note prepended. |
+| **letter-only** `<slug>` | `--cover-letter --for <slug>`, "cover letter for the Stripe one" | Skip to Step 9; `cover-letter.md` reads `<dir>/posting.json` and `tailored.yaml`. |
+
+Slug resolution: exact directory name under `outputs/`; else the unique row of `outputs/index.md` whose Slug or Company column contains the user's words; ambiguous or absent → list the candidates and ask.
 
 ---
 
@@ -41,7 +55,7 @@ Then **read `<SKILL_ROOT>/templates/<N>/NOTES.md`**: the macro cheat-sheet, yaml
 
 ## Step 1.5 — Preflight (LaTeX environment check)
 
-Skip if `--skip-preflight` was given, or a preflight in this session already returned `STATUS=ok` for this template number.
+`env-probe.sh` already established at entry whether a compiler exists; preflight is the per-template smoke compile. Skip it when `--skip-preflight` was given, when a preflight in this session already returned `STATUS=ok` for this template number, or when `SOURCE_ONLY=yes` was decided at entry (Steps 7 and 7.5 are skipped too; the user compiles elsewhere).
 
 ```bash
 bash <SKILL_ROOT>/tests/preflight.sh <N>
@@ -53,7 +67,7 @@ The script smoke-compiles the bundled `template.tex` in a temp dir (ground truth
 |---|---|---|---|
 | 0 | `ok` | the template compiles here | proceed |
 | 1 | `missing` | gaps found; `DISTRO=miktex` or `texlive` can auto-install | "Missing items" flow below |
-| 2 | `no-compiler` | compiler not on PATH | show the `INSTALL_CMD` hint (install MiKTeX or TeX Live) and offer two ways forward: install TeX and re-invoke, or continue **source-only** (Steps 3-6 and 8 run, lint included; no PDF, QA numbers unmeasured, the user compiles elsewhere, e.g. Overleaf). Non-interactive session → source-only. |
+| 2 | `no-compiler` | compiler not on PATH | cannot happen after `env-probe.sh` unless PATH changed; treat as at entry: ask install-or-source-only once (source-only = Steps 3-6 and 8 run, lint included; no PDF; the user compiles elsewhere, e.g. Overleaf). Non-interactive session → source-only. |
 | 3 | `no-distro` | gaps found but no auto-install path: Debian/Fedora-packaged TeX (`DISTRO=debian`/`fedora`), unknown distro, or `sudo` needed without a terminal | show the `MISSING_*` and `INSTALL_CMD` lines for the user to run themselves, abort |
 | 4 | `invalid` | bad arguments: a bug in this skill | surface, abort |
 | 5 | `install-failed` | install ran, the smoke compile still fails | show the log tail from stderr; ask: continue anyway (rarely works) or abort |
@@ -107,29 +121,68 @@ Use `cp -r`; **preserve directory case** (`Fonts/` vs `fonts/`; Linux/macOS are 
 
 ## Step 4.5 — Deep-dive on `evidence:` (conditional)
 
-Only when a job posting is in context **and** at least one relevant entry carries a non-empty `evidence:` list: **read `<SKILL_ROOT>/deep-dive.md` and follow it.** It returns tailoring deltas that you merge into the in-memory yaml view. Otherwise skip to Step 5.
+Only when a job posting is in context **and** at least one relevant entry carries a non-empty `evidence:` list (or the deferred-gap list names one): **read `<SKILL_ROOT>/deep-dive.md` and follow it.** Phase 1 fills or reads `<cwd>/.resume-cache/evidence/`; Phase 2 merges tailoring deltas into the in-memory yaml view and returns, per deferred gap, `addressed` or `still-open`. Otherwise every deferred gap is `still-open`; go to Step 4.6.
 
 ---
 
-## Step 5 — Generate `resume.tex`
+## Step 4.6 — Deferred gaps (one question at most)
 
-Open `templates/<N>/template.tex` as the structural reference (you already have `NOTES.md`). Write `<dir>/resume.tex`:
+`SKILL.md` Step 3 deferred the gaps that an `evidence:` entry might answer. Now they are settled:
+
+- No deferred gaps, or all `addressed` → note the outcome for `report.md` and continue to Step 5a.
+- Some `still-open` → ask **once**, listing them with what the evidence did say ("the Halcyon repo shows Kafka but nothing about Kafka Streams"): **Fill** → `onboarding.md` Branch 3 (write, validate, return here and re-run Step 4.5 for the touched entries) or **Proceed** → record the accepted gaps for `report.md` and continue.
+- Variants: this question was already asked in main before fan-out (`variants.md`); a variant sub-agent never asks, it records.
+
+---
+
+## Step 5a — Plan (`tailored.yaml`, before any LaTeX)
+
+Content decisions happen here and are written to `<dir>/tailored.yaml` immediately, headed by `# generated by resume-generator; edit knowledge.yaml, not this file`. The plan is the knowledge view that will be rendered plus one decision per entry. Trimming later (Step 7) edits this plan and re-renders; it never edits LaTeX by hand.
+
+1. **Sentinels are absent**: any value matching `<[A-Z][A-Za-z0-9_]*>` (the gate's `OPTIONAL_PLACEHOLDER=` lines) is omitted; an entry whose key field (name/title/degree) is a sentinel is dropped.
+2. **Score** every entry in `experience`, `projects`, `education`, `teaching`, `certifications`, `publications`, `events`, `awards`, `interests` for this posting: `relevance: 3` (matches a required skill or the domain via `tags`, `technologies`, or text), `2` (matches a preferred item), `1` (neutral), `0` (off-topic: a Photoshop teaching gig on a backend SWE resume). Without a posting every entry scores `1`. `pin: true` entries are always kept.
+3. **Decide** per entry: `keep: true|false`, `reason:` (one line: "required: Kubernetes", "off-topic", "trimmed for page budget"), and `order:` within its section (most recent first by ISO `start`/`end`, else parsed `years`; deep-dive citations travel with their achievement lines).
+4. **Section order** by relevance: experience before projects for senior roles; projects and education first for entry-level. Without a posting: keep everything, most recent first.
+5. **Page budget**: `page_limit` from the yaml, else 1 for templates 1/2/6 (2 for template 2 when the yaml shows more than 8 years of experience: pass that number to `qa-gate.sh --experience-years` later) and 2 for 3/4/5. Estimate before rendering: a bullet ≈ 1 line at ~95 characters (templates 1/2/6) or ~80 (3/4/5); an entry header ≈ 2 lines; a section heading ≈ 2 lines; ≈ 52 lines per page. Over the estimate → set `keep: false`, lowest `relevance` first, in this order: oldest projects, oldest experience bullets (keep at least 2 per kept role), optional sections (interests, awards, events). Record `budget: {pages: N, estimated_lines: M}`.
+6. **Coverage matrix** (posting only), one row per required or preferred item: `requirement`, `status: covered|partial|missing`, `where` (section + entry or Skills). `score = covered / total`; it measures keyword coverage, not hiring odds, and every report says so. The top-3 required items must map to kept content that renders in the first half of page 1; if one does not, raise that entry's `order` or set `keep: true` now, before rendering.
+7. **Wording** is decided in the plan too: rephrase kept achievements in the posting's vocabulary, lead `profile` with the role's top requirements. Reordering and rephrasing are fine; never invent facts, numbers, employers, or dates.
+
+Plan shape (the yaml sections keep their `knowledge.yaml` keys; these fields are added):
+
+```yaml
+# generated by resume-generator; edit knowledge.yaml, not this file
+generated_at: 2026-09-03
+template: 2
+budget: {pages: 1, estimated_lines: 49}
+coverage:
+  score: 0.8
+  rows:
+    - {requirement: "Python, 5+ years", status: covered, where: "Experience: Halcyon; Skills"}
+    - {requirement: "Kafka Streams", status: missing, where: ""}
+experience:
+  - title: Senior Engineer
+    company: Halcyon
+    relevance: 3
+    keep: true
+    reason: "required: Python, Kubernetes"
+    order: 1
+    achievements:
+      - "Cut p99 latency 40% by moving the ingest path to Kafka (evidence: halcyon/docs/postmortem.md:12)"
+```
+
+---
+
+## Step 5b — Render (`resume.tex` from the plan)
+
+Open `templates/<N>/template.tex` as the structural reference (you already have `NOTES.md`). Write `<dir>/resume.tex` from `tailored.yaml`, rendering only `keep: true` entries in plan order:
 
 1. **First line** is the compiler marker: copy `%!TEX program = xelatex` from `template.tex` when present, else write `%!TEX program = pdflatex`. `build.sh` and `lint-tex.sh` read it.
 2. Mirror the preamble (`\documentclass`, packages, custom commands). For pdflatex templates add `\usepackage[T1]{fontenc}` when the text has non-ASCII characters.
-3. **Drop every sample**: names, employers, lorem ipsum, the moderncv cover-letter block (unless `cover-letter.md` says otherwise), `\photo` unless `photo:` is set, date-of-birth/nationality rows unless set, sample referees (use `references:` from the yaml, else "References available on request" or omit the section).
-4. **Sentinel values are absent**: any value matching `<[A-Z][A-Za-z0-9_]*>` (the gate's `OPTIONAL_PLACEHOLDER=` lines) is omitted; if an entry's key field (name/title/degree) is a sentinel, drop the whole entry.
-5. **Select and order** (posting in context):
-   - `pin: true` entries always stay.
-   - Keep entries whose `tags`, `technologies`, or text overlap the posting's required skills or domain; cut clearly off-topic ones (a Photoshop teaching gig on a backend SWE resume).
-   - Within a section, most recent first: use `start`/`end` (ISO) and else parse `years`.
-   - Order sections by relevance: experience before projects for senior roles; projects and education first for entry-level.
-   - Without a posting: keep everything, most recent first.
-6. **Page budget**: `page_limit` from the yaml, else Template 1: 1; Template 2: 1 (2 when the yaml shows more than ~8 years of experience); 3, 4, 5: 2; 6: 1. Trim lowest-relevance content first: oldest projects, then oldest experience bullets, then optional sections (interests, awards, events). Step 7.5 measures the real count.
-7. **Tailor wording**: rephrase achievements in the posting's vocabulary, lead `profile` with the role's top requirements. Never invent facts, numbers, employers, or dates; reordering and rephrasing are fine.
-8. **Headings**: when `language:` is not `en`, read `<SKILL_ROOT>/assets/section-headings.yaml` and use those headings; body text stays as written. For pdflatex templates add `\usepackage[<italian|german|french|spanish>]{babel}`.
-9. **LaTeX escaping** of every value taken from the yaml: `&`→`\&`, `%`→`\%`, `$`→`\$`, `#`→`\#`, `_`→`\_`, `{`→`\{`, `}`→`\}`, `~`→`\textasciitilde{}`, `^`→`\textasciicircum{}`. Inside `\href{URL}{text}` the URL stays raw; the display text is escaped.
-10. **Links**: always `\href{<url>}{<display>}`. Templates 1 and 2 load `hyperref` in the preamble, 3 and 4 in the class, 5 and 6 in `structure.tex`; never load it twice.
+3. **Drop every sample**: names, employers, lorem ipsum, the moderncv cover-letter block (unless `cover-letter.md` says otherwise), `\photo` unless `photo:` is set, date-of-birth/nationality rows unless set, sample referees (use `references:` from the plan, else "References available on request" or omit the section).
+4. **Headings**: when `language:` is not `en`, read `<SKILL_ROOT>/assets/section-headings.yaml` and use those headings; body text stays as written. For pdflatex templates add `\usepackage[<italian|german|french|spanish>]{babel}`.
+5. **LaTeX escaping** of every value taken from the plan: `&`→`\&`, `%`→`\%`, `$`→`\$`, `#`→`\#`, `_`→`\_`, `{`→`\{`, `}`→`\}`, `~`→`\textasciitilde{}`, `^`→`\textasciicircum{}`. Inside `\href{URL}{text}` the URL stays raw; the display text is escaped.
+6. **Links**: always `\href{<url>}{<display>}`. Templates 1 and 2 load `hyperref` in the preamble, 3 and 4 in the class, 5 and 6 in `structure.tex`; never load it twice.
+7. The template's preset below decides layout emphasis, never content; content was decided in 5a.
 
 ### Tailoring presets
 
@@ -154,48 +207,50 @@ bash <SKILL_ROOT>/tests/lint-tex.sh <dir>/resume.tex
 
 Fix every `LINT_ERROR=` (unescaped specials, unbalanced braces or environments, leaked sample data or placeholders, `\href` without hyperref) and re-run; stop after three rounds and tell the user what remains. A `template sample data leaked` hit is a false positive when the string genuinely comes from `knowledge.yaml` (an alma mater such as MIT or Berkeley); check the yaml before changing anything. `LINT_WARN=` lines are hints. Then read the file once yourself for what lint cannot see: macros with the wrong number of brace arguments (NOTES.md lists the arities), headings that no longer match their content.
 
-### 6b. Content review + coverage matrix (only with a posting)
+### 6b. Coverage check on the render (only with a posting)
 
-Build the coverage matrix from the posting analysis, one row per required or preferred item:
-
-| Requirement | Status | Where on the resume |
-|---|---|---|
-| Python, 5+ years | covered | Experience: Halcyon (2021-), Skills |
-| Kubernetes | covered | Experience: Halcyon, bullet 2 |
-| Go | partial | Skills only; no achievement mentions it |
-| Kafka Streams | missing | not in knowledge.yaml |
-
-Coverage score = covered / total. It measures keyword coverage, not hiring odds; say so whenever you report it. Then check: the top-3 required skills are visible in the first half of page 1; achievements are quantified where the yaml has numbers; nothing misaligned with the role slipped in; nothing high-impact and matching was dropped. Apply edits and re-run 6a if you touched LaTeX.
+The matrix was built in Step 5a. Verify it survived rendering: every `where` cell points at text that is actually in `resume.tex`; the top-3 required items sit in the first half of page 1 (by position in the source now, confirmed on the PNG in Step 7.5); achievements are quantified where the plan has numbers; nothing off-topic slipped in. A miss is a plan fix (Step 5a: raise `order`, flip `keep`) followed by a re-render, not a hand edit of LaTeX. Re-run 6a after any re-render.
 
 ---
 
-## Step 7 — Build
+## Step 7 — Build + QA gate (scripted)
+
+Skip in source-only mode (say so; the user compiles elsewhere, e.g. Overleaf).
 
 ```bash
-bash <SKILL_ROOT>/tests/build.sh <dir> --template <N>
+bash <SKILL_ROOT>/tests/qa-gate.sh <dir> --template <N> [--page-limit <L>] [--experience-years <Y>] [--allow "<string>"]...
 ```
 
-Uses `latexmk` when available, otherwise two compiler passes, then runs the post-compile checks. Stdout keys: `STATUS`, `COMPILER`, `PDF`, `PAGES`, `OVERFULL`, `UNDERFULL`, `TEXT_EXTRACT`, `PLACEHOLDER_LEAK`, `UNRESOLVED_REFS`, `LEAK=` lines, `PNG`. Aux files are cleaned; `resume.log` stays.
+Pass `--page-limit` when the yaml sets `page_limit`, `--experience-years` for template 2 (the number from Step 5a.5), and `--allow` for each `LEAK=` string already verified to come from `knowledge.yaml` (an alma mater such as MIT). The script runs `build.sh` (latexmk when available, else two passes), echoes its keys (`COMPILER`, `PDF`, `PAGES`, `OVERFULL`, `TEXT_EXTRACT`, `PLACEHOLDER_LEAK`, `UNRESOLVED_REFS`, `LEAK=`, `PNG`), then applies the budget and leak rules. Aux files are cleaned; `resume.log` stays.
 
-`STATUS=compile-failed` (exit 1):
-1. The last 40 log lines are on stderr; show the user the `!` lines.
-2. **Dispatch a sub-agent** to diagnose (the log is verbose; keep it out of main): `subagent_type: general-purpose`, `model: sonnet`, `description: Diagnose LaTeX compile error`; prompt with the paths to `resume.log` and `resume.tex`, asking for the line number and replacement only, not the log content.
-3. Apply, rebuild. One retry; then surface the diagnosis to the user.
+| Exit | STATUS | Action |
+|---|---|---|
+| 0 | `pass` | Step 7.5 |
+| 1 | `fail` | per `FAIL=` line: `pages:<n>/<budget>` → Step 5a, set `keep: false` on the next lowest-relevance item, re-render, re-run; one trim cycle, then report the overrun. `placeholder-leak:` / `leak:<string>` → fix the plan value or the render (a genuine string → add `--allow`), re-run. `unresolved-refs:` → re-run once (second pass), then fix the reference |
+| 2 | `no-compiler` | source-only was decided at entry; otherwise back to Step 1.5 |
+| 5 | `compile-failed` | classify flow below |
 
-`STATUS=no-compiler` means preflight was skipped on a machine without TeX: go back to Step 1.5.
+`WARN=` lines never block; they go to `report.md`: `overfull:<n>` above 5 → shorten long unbreakable tokens (URLs, comma-less tech lists) if a rebuild happens anyway; `text-extract:empty` → tell the user ATS parsers will see nothing; `text-extract:unavailable` → leak and reference checks were not measured (no `pdftotext`).
+
+### Compile failed (exit 5)
+
+```bash
+bash <SKILL_ROOT>/tests/classify-log.sh <dir>/resume.log
+```
+
+| Exit | Meaning | Action |
+|---|---|---|
+| 0 | `CLASS=`, `LINE=`, `TOKEN=`, `HINT=` | apply the hinted fix inline: a missing asset → Step 4; a macro/arity/escape problem → edit `resume.tex` at `LINE`; a content problem (an unescaped value) → fix it in the plan too so a re-render keeps it. Re-run `qa-gate.sh` |
+| 1 | `CLASS=unknown` | **dispatch a sub-agent** to diagnose (the log is verbose; keep it out of main): `subagent_type: general-purpose`, `model: sonnet`, `description: Diagnose LaTeX compile error`; prompt with the paths to `resume.log` and `resume.tex`, asking for the line number and replacement only, not the log content. Apply, re-run |
+| 5 | no `!` line | the failure is outside LaTeX (timeout, disk, PATH); show the stderr tail and stop |
+
+One retry after either path; then surface the diagnosis and the `!` lines to the user.
 
 ---
 
-## Step 7.5 — QA gate on the PDF
+## Step 7.5 — Visual check
 
-| Check | Rule | Fix |
-|---|---|---|
-| `PAGES` | ≤ the page budget from Step 5.6 | trim per Step 5.6 and rebuild; one trim cycle, then report the overrun |
-| `PLACEHOLDER_LEAK`, `LEAK=` | 0 / none (both only reported when `TEXT_EXTRACT=ok`) | fix the source, rebuild; a `LEAK=` string that genuinely comes from `knowledge.yaml` is a false positive |
-| `UNRESOLVED_REFS` | 0 | rebuild (needs the second pass) or fix the reference |
-| `OVERFULL` | > 5 → inspect | shorten long unbreakable tokens (URLs, comma-less tech lists) |
-| `TEXT_EXTRACT=empty` | warn the user | the PDF has no extractable text; ATS parsers will see nothing |
-| `PNG` | view it once with the image reader | name header intact, no empty section, no orphan heading at a page bottom, columns balanced (template 3), nothing pushed off the page; one fix-and-rebuild cycle |
+View `PNG=` once with the image reader: name header intact, no empty section, no orphan heading at a page bottom, columns balanced (template 3), nothing pushed off the page, the top-3 requirements visible in the upper half. One fix-and-rebuild cycle (plan fix → re-render → Step 7), then report what remains.
 
 ---
 
@@ -203,8 +258,24 @@ Uses `latexmk` when available, otherwise two compiler passes, then runs the post
 
 Write into `<dir>`:
 
-- `tailored.yaml`: the in-memory view that was actually rendered (after deep-dive merges and selection), headed by `# generated by resume-generator; edit knowledge.yaml, not this file`.
-- `report.md`: template + reason; posting (title, company, source); coverage matrix and score; what was dropped, reordered, or rephrased; deep-dive deltas and warnings; QA numbers (pages, overfull, leaks); soft-gate gaps the user waived.
+- `tailored.yaml`: already written in Step 5a; update it now with the final `keep` decisions after any trim, `rendered_at:`, and a `qa:` block (`pages`, `budget`, `overfull`, `leaks`, `warnings`).
+- `posting.json`: the structured analysis so refresh, rebuild, and letter-only modes never re-fetch:
+  ```json
+  {
+    "source": "<url | file path | pasted>",
+    "fetched_at": "2026-09-03",
+    "title": "Backend SWE", "company": "Stripe", "location": "Remote (EU)",
+    "domain": "payments infrastructure",
+    "required": ["Python", "Kubernetes", "Kafka Streams"],
+    "preferred": ["Go"],
+    "years": "5+",
+    "expects": {"publications": false, "referees": false, "photo": false},
+    "classification": "industry", "confidence": "high",
+    "template": 2, "template_reason": "industry backend role"
+  }
+  ```
+  No posting → write it with `"source": "none"` and the template fields only.
+- `report.md`: template + reason; posting (title, company, source); coverage matrix and score with its caveat; per entry `keep`/`reason` (what was dropped, reordered, rephrased); deep-dive deltas with citations, per-entry `cache: hit|miss|failed`, and warnings; deferred gaps and their outcome (`addressed` / waived); `WARN=` lines and QA numbers (pages, budget, overfull, leaks); soft-gate gaps the user waived.
 
 Append one row to `<cwd>/outputs/index.md` (create it with the header row when missing):
 
@@ -220,7 +291,7 @@ Then report to the user, tightly: the PDF path (clickable), template + reason, c
 
 ## Step 9 — Cover letter (only when requested)
 
-`--cover-letter` or "and a cover letter" → **read `<SKILL_ROOT>/cover-letter.md`** and follow it. It reuses the posting analysis, the coverage matrix, and `<dir>`.
+`--cover-letter` or "and a cover letter" → **read `<SKILL_ROOT>/cover-letter.md`** and follow it. It reuses the posting analysis, the coverage matrix, and `<dir>`. In letter-only mode this is the only step that runs; `cover-letter.md` resolves `<dir>` from the slug.
 
 ---
 
@@ -233,6 +304,9 @@ Then report to the user, tightly: the PDF path (clickable), template + reason, c
 - Scripts run from `<SKILL_ROOT>/tests/`; never copy them into `<cwd>`.
 - The tailored view goes to `<dir>/tailored.yaml`; `<cwd>/knowledge.yaml` is never modified here.
 - Output slugs are lowercase kebab-case; collisions get `-v2`, never silent overwrites.
+- `tailored.yaml` is the plan and is written **before** `resume.tex`. Content decisions (keep, order, trim, wording) happen in the plan; LaTeX is rendered from it. Trim in the plan, never by hand in LaTeX.
+- Step 7 calls `qa-gate.sh`, never `build.sh` directly; the budget and leak arithmetic live in the script.
+- `<cwd>/.resume-cache/evidence/` (deep-dive facts with citations) is the only write outside `<dir>`; `posting.json` stays inside `<dir>`.
 
 ## Common mistakes
 
@@ -244,7 +318,11 @@ Then report to the user, tightly: the PDF path (clickable), template + reason, c
 | Missing `*.sty` for template 4 | Copy every `*.sty` from `templates/4/` |
 | Sample name or `<PLACEHOLDER>` in the PDF | Lint (6a) and `build.sh` leak checks catch it; fix the source |
 | `\photo{pictures/picture}` left in template 4 | Only emit `\photo` when `photo:` is set, pointing at the copied file |
-| Resume over the page budget | Trim per Step 5.6; don't shrink fonts below the template's default |
+| Resume over the page budget | Flip `keep: false` in the plan (Step 5a.5) and re-render; don't shrink fonts below the template's default |
 | `&` in a company name | `\&`; lint flags it |
 | Stale yaml data | Re-read `<cwd>/knowledge.yaml` |
 | Overwrote a previous output | Collisions get `-v2`; overwrite only after asking |
+| Trimming for the page budget by deleting LaTeX lines | Flip `keep: false` in `tailored.yaml` (Step 5a) and re-render |
+| Sending every compile error to a sub-agent | `classify-log.sh` first; only `CLASS=unknown` needs the sub-agent |
+| Re-fetching a posting for "redo the Stripe one" | Refresh mode reads `outputs/<slug>/posting.json` |
+| Dispatching deep-dive sub-agents when `.resume-cache/` is fresh | Phase 1 freshness check first (`find -newer`) |

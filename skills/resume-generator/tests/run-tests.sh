@@ -143,12 +143,29 @@ else
   bad "leak-strings.txt" "missing or lacks 'John Smith' / 'Lorem ipsum'"
 fi
 
-echo "== validate-knowledge.sh =="
-V="$T/validate-knowledge.sh"
 have_yaml=0
 if have python3 && python3 -c 'import yaml' >/dev/null 2>&1; then
   have_yaml=1
 fi
+
+echo "== env-probe.sh =="
+E="$T/env-probe.sh"
+mkdir -p "$tmp/emptybin"
+run env PATH="$tmp/emptybin" "$(command -v bash)" "$E"
+expect "env-probe: empty PATH -> exit 2, no-compiler, PYYAML=no" 2 "STATUS=no-compiler" "PDFLATEX=" "XELATEX=" "PYYAML=no" "DISTRO=unknown" "INSTALL_CMD=#"
+if hasre '^PDFLATEX=$' && hasre '^LATEXMK=$'; then ok "env-probe: empty PATH leaves tool paths empty"; else bad "env-probe: empty PATH tool paths" "$(oneline)"; fi
+run bash "$E"
+if have pdflatex || have xelatex; then
+  expect "env-probe: this machine -> STATUS=ok" 0 "STATUS=ok" "DISTRO=" "PYYAML="
+else
+  expect "env-probe: this machine -> no-compiler" 2 "STATUS=no-compiler"
+fi
+if [ "$have_yaml" -eq 1 ]; then has "PYYAML=yes" && ok "env-probe: PYYAML=yes matches the validator's parser" || bad "env-probe: PYYAML" "$(oneline)"; fi
+run bash "$E" extra
+expect "env-probe: any argument -> exit 4" 4
+
+echo "== validate-knowledge.sh =="
+V="$T/validate-knowledge.sh"
 if [ "$have_yaml" -eq 1 ]; then
   run bash "$V" "$FX/knowledge-valid.yaml"
   expect "validate: valid fixture passes the gate" 0 "STATUS=ok" "PARSER=python"
@@ -266,6 +283,39 @@ printf '%%!TEX program = pdflatex\n\\documentclass{article}\n\\begin{document}\n
 run bash "$L" "$tmp/neg.tex"
 expect "lint: stray closing brace is an error" 1 "unbalanced braces: 1 opening { vs 2 closing }"
 
+echo "== classify-log.sh =="
+C="$T/classify-log.sh"
+run bash "$C" "$FX/log-undefined-cs.log"
+expect "classify: undefined control sequence" 0 "STATUS=classified" "CLASS=undefined-control-sequence" "LINE=42" "TOKEN=\\sectionn" "HINT="
+run bash "$C" "$FX/log-missing-sty.log"
+expect "classify: missing .sty -> missing-package" 0 "CLASS=missing-package" "TOKEN=ebgaramond.sty" "LINE=5"
+run bash "$C" "$FX/log-missing-cls.log"
+expect "classify: missing .cls -> missing-class" 0 "CLASS=missing-class" "TOKEN=resume.cls" "Step 4"
+run bash "$C" "$FX/log-font.log"
+expect "classify: fontspec font-not-found" 0 "CLASS=font-not-found" "TOKEN=Alegreya" "LINE=30"
+run bash "$C" "$FX/log-runaway.log"
+expect "classify: runaway argument" 0 "CLASS=runaway-argument" "TOKEN=\\@resumeSubheading"
+run bash "$C" "$FX/log-clean.log"
+expect "classify: clean log -> exit 5 no-error" 5 "STATUS=no-error" "CLASS=none"
+run bash "$C" "$FX/log-unknown.log"
+expect "classify: unknown error -> exit 1" 1 "STATUS=unknown" "CLASS=unknown" "ERROR=! Something bizarre" "LINE=7"
+printf '(./resume.tex\n! Missing $ inserted.\n<inserted text> \n                $\nl.19 Grew ARR 40%% to $\n                       2M.\n' > "$tmp/dollar.log"
+run bash "$C" "$tmp/dollar.log"
+expect "classify: missing dollar" 0 "CLASS=missing-dollar" "LINE=19"
+printf '(./resume.tex\n! Too many }'"'"'s.\nl.23 \\item{Built it}}\n' > "$tmp/brace.log"
+run bash "$C" "$tmp/brace.log"
+expect "classify: extra brace" 0 "CLASS=extra-brace" "LINE=23"
+printf '(./resume.tex\n! LaTeX Error: Environment rSection undefined.\n\nl.31 \\begin{rSection}\n' > "$tmp/env.log"
+run bash "$C" "$tmp/env.log"
+expect "classify: undefined environment" 0 "CLASS=undefined-environment" "TOKEN=rSection" "LINE=31"
+printf '(./resume.tex\n! Package geometry Error: \\paperwidth (0.0pt) too short.\n\nl.9 \\usepackage[margin=0in]{geometry}\n' > "$tmp/pkg.log"
+run bash "$C" "$tmp/pkg.log"
+expect "classify: package error" 0 "CLASS=package-error" "TOKEN=geometry" "LINE=9"
+run bash "$C" "$tmp/nope.log"
+expect "classify: missing log -> exit 3" 3 "STATUS=not-found"
+run bash "$C"
+expect "classify: no args -> exit 4" 4
+
 echo "== check-version-sync.sh =="
 run bash "$T/check-version-sync.sh"
 expect "check-version-sync: manifests agree" 0 "versions in sync"
@@ -342,6 +392,81 @@ else
   cp "$FX/no-magic.tex" "$bdir/resume.tex"
   run bash "$B" "$bdir" --template 3
   expect "build: --template N supplies the compiler when the .tex has no marker" 2 "COMPILER=xelatex"
+fi
+
+echo "== qa-gate.sh =="
+Q="$T/qa-gate.sh"
+qdir="$tmp/qa"
+mkdir -p "$qdir"
+cp "$FX/good.tex" "$qdir/resume.tex"
+mk_out() {  # mk_out <file> <pages> <overfull> <placeholder> <refs> <text> [leak...]
+  local f="$1" pages="$2" over="$3" ph="$4" refs="$5" text="$6"
+  shift 6
+  {
+    echo "STATUS=ok"; echo "COMPILER=pdflatex"; echo "PDF=$qdir/resume.pdf"
+    echo "PAGES=$pages"; echo "OVERFULL=$over"; echo "UNDERFULL=0"; echo "TEXT_EXTRACT=$text"
+    if [ "$text" = ok ]; then echo "PLACEHOLDER_LEAK=$ph"; echo "UNRESOLVED_REFS=$refs"; fi
+    for l in ${1+"$@"}; do echo "LEAK=$l"; done
+    echo "PNG=$qdir/resume-p1.png"
+  } > "$f"
+}
+mk_out "$tmp/q-pass.out" 1 2 0 0 ok
+run bash "$Q" "$qdir" --from "$tmp/q-pass.out" --template 2
+expect "qa-gate: clean build passes" 0 "STATUS=pass" "BUDGET=1" "PAGES=1" "PNG=$qdir/resume-p1.png"
+mk_out "$tmp/q-2p.out" 2 0 0 0 ok
+run bash "$Q" "$qdir" --from "$tmp/q-2p.out" --template 2
+expect "qa-gate: 2 pages on template 2 fails" 1 "STATUS=fail" "FAIL=pages:2/1"
+run bash "$Q" "$qdir" --from "$tmp/q-2p.out" --template 2 --experience-years 12
+expect "qa-gate: template 2 with >8 years gets a 2-page budget" 0 "STATUS=pass" "BUDGET=2"
+run bash "$Q" "$qdir" --from "$tmp/q-2p.out" --template 2 --experience-years 8
+expect "qa-gate: exactly 8 years keeps 1 page" 1 "BUDGET=1"
+run bash "$Q" "$qdir" --from "$tmp/q-2p.out" --template 3
+expect "qa-gate: template 3 default budget is 2" 0 "BUDGET=2"
+run bash "$Q" "$qdir" --from "$tmp/q-2p.out" --template 3 --page-limit 1
+expect "qa-gate: --page-limit overrides the template default" 1 "BUDGET=1" "FAIL=pages:2/1"
+run bash "$Q" "$qdir" --from "$tmp/q-2p.out" --template 3 --file cover-letter.tex
+expect "qa-gate: a non-resume --file (cover letter) is budgeted at 1 page" 1 "BUDGET=1"
+mk_out "$tmp/q-leak.out" 1 0 0 0 ok "John Smith" "MIT"
+run bash "$Q" "$qdir" --from "$tmp/q-leak.out" --template 2
+expect "qa-gate: LEAK lines fail" 1 "FAIL=leak:John Smith" "FAIL=leak:MIT"
+run bash "$Q" "$qdir" --from "$tmp/q-leak.out" --template 2 --allow "MIT" --allow "John Smith"
+expect "qa-gate: --allow whitelists genuine strings" 0 "STATUS=pass"
+mk_out "$tmp/q-ph.out" 1 0 3 0 ok
+run bash "$Q" "$qdir" --from "$tmp/q-ph.out" --template 2
+expect "qa-gate: placeholder leak fails" 1 "FAIL=placeholder-leak:3"
+mk_out "$tmp/q-refs.out" 1 0 0 2 ok
+run bash "$Q" "$qdir" --from "$tmp/q-refs.out" --template 2
+expect "qa-gate: unresolved refs fail" 1 "FAIL=unresolved-refs:2"
+mk_out "$tmp/q-over.out" 1 9 0 0 ok
+run bash "$Q" "$qdir" --from "$tmp/q-over.out" --template 2
+expect "qa-gate: overfull > 5 is a warning, not a failure" 0 "STATUS=pass" "WARN=overfull:9"
+mk_out "$tmp/q-notext.out" 1 0 0 0 unavailable
+run bash "$Q" "$qdir" --from "$tmp/q-notext.out" --template 2
+expect "qa-gate: no pdftotext -> warning, leak checks unmeasured" 0 "STATUS=pass" "WARN=text-extract:unavailable"
+mk_out "$tmp/q-empty.out" 1 0 0 0 empty
+run bash "$Q" "$qdir" --from "$tmp/q-empty.out" --template 2
+expect "qa-gate: empty text layer -> warning" 0 "WARN=text-extract:empty"
+printf 'STATUS=compile-failed\nCOMPILER=pdflatex\n' > "$tmp/q-cf.out"
+run bash "$Q" "$qdir" --from "$tmp/q-cf.out" --template 2
+expect "qa-gate: compile-failed passes through as exit 5" 5 "STATUS=compile-failed"
+printf 'STATUS=no-compiler\nCOMPILER=xelatex\n' > "$tmp/q-nc.out"
+run bash "$Q" "$qdir" --from "$tmp/q-nc.out" --template 3
+expect "qa-gate: no-compiler passes through as exit 2" 2 "STATUS=no-compiler"
+run bash "$Q" "$qdir" --from "$tmp/q-pass.out"
+expect "qa-gate: --template is required" 4
+run bash "$Q" "$qdir" --from "$tmp/q-pass.out" --template 99
+expect "qa-gate: unknown template -> exit 4" 4
+run bash "$Q" "$qdir" --from "$tmp/missing.out" --template 2
+expect "qa-gate: missing --from file -> exit 3" 3
+run bash "$Q" "$tmp/no-such" --template 2
+expect "qa-gate: missing dir -> exit 3" 3
+run bash "$Q"
+expect "qa-gate: no args -> exit 4" 4
+if have pdflatex; then
+  skipt "qa-gate: live no-compiler path" "pdflatex is present"
+else
+  run bash "$Q" "$qdir" --template 2
+  expect "qa-gate: live run without TeX -> exit 2" 2 "STATUS=no-compiler"
 fi
 
 echo "== compile-all.sh =="

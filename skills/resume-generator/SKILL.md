@@ -1,7 +1,7 @@
 ---
 name: resume-generator
-description: Use when the user asks to generate, create, write, or tailor a resume or CV in any format (LaTeX included), mentions a job application or job posting, wants a cover letter for a specific role, wants to update their resume for a specific role, or asks to set up, validate, import, or bootstrap a knowledge.yaml in the current working directory. Also use when they ask to skip the resume setup, are in a hurry, or want a resume scaffold with placeholder or invented content.
-argument-hint: "[posting URL|file|text] [--template N] [--cover-letter] [--skip-preflight]"
+description: Use when the user asks to generate, create, write, or tailor a resume or CV in any format (LaTeX included), mentions a job application or job posting, wants a cover letter for a specific role, wants to update their resume for a specific role, or asks to set up, validate, import, or bootstrap a knowledge.yaml in the current working directory. Also use when they ask to skip the resume setup, are in a hurry, or want a resume scaffold with placeholder or invented content. Also use when they want to refresh or rebuild a previously generated resume, or a cover letter for an application already generated.
+argument-hint: "[posting URL|file|text] [--template N] [--cover-letter] [--skip-preflight] [--refresh SLUG] [--rebuild SLUG] [--for SLUG] [--no-cache]"
 ---
 
 # Resume Generator
@@ -37,10 +37,13 @@ Standalone skill that generates tailored LaTeX resumes (and PDFs) from a `knowle
 │   ├── 5/  structure.tex + fonts/ + template.tex + NOTES.md      # Wilson, UK-style       (xelatex)
 │   └── 6/  structure.tex + template.tex + NOTES.md               # Cies, minimal one page (pdflatex)
 └── tests/
+    ├── env-probe.sh              # entry-time environment probe (Step 1; no template needed)
     ├── validate-knowledge.sh     # the gate (Step 2)
-    ├── preflight.sh              # LaTeX env check + installer (generation Step 1.5)
+    ├── preflight.sh              # per-template smoke compile + installer (generation Step 1.5)
     ├── lint-tex.sh               # deterministic .tex lint (generation Step 6a)
-    ├── build.sh                  # compile + post-compile QA numbers (generation Step 7)
+    ├── qa-gate.sh                # runs build.sh, applies page budget + leak rules (generation Step 7)
+    ├── classify-log.sh           # compile-error classifier, before any diagnosis sub-agent (generation Step 7)
+    ├── build.sh                  # compile + post-compile numbers (called by qa-gate.sh)
     └── lib.sh, compile-all.sh, run-tests.sh, e2e.sh, check-version-sync.sh   # maintainer tooling
 ```
 
@@ -56,44 +59,68 @@ When invoked with arguments (slash-command form), parse `$ARGUMENTS` before Step
 | `--template N` | explicit template (1-6); skips auto-pick |
 | `--cover-letter` | also produce a cover letter (`cover-letter.md`) |
 | `--skip-preflight` | skip generation Step 1.5 |
+| `--refresh SLUG` | re-tailor `outputs/SLUG/` after `knowledge.yaml` changed: reuses its `posting.json`, no re-fetch, no template question (generation "Re-entry modes") |
+| `--rebuild SLUG` | the user edited `outputs/SLUG/resume.tex` by hand: lint + build + QA only, then update `report.md` / `index.md` |
+| `--for SLUG` | with `--cover-letter`: write the letter for an existing output without regenerating the resume |
+| `--no-cache` | force the deep-dive to re-read every `evidence:` path (ignore `.resume-cache/`) |
 
-No arguments = conversational mode; read the same intent from the request text.
+No arguments = conversational mode; read the same intent from the request text. Conversational equivalents: "redo the Stripe one after my edits" = refresh; "I edited the tex, rebuild it" = rebuild; "cover letter for the Stripe one" = `--cover-letter --for`; "re-read my evidence" = `--no-cache`. A resume file/URL and/or work directories handed over in the request are onboarding sources (Step 1).
 
 ## Entry workflow + gate
 
 ```dot
 digraph entry {
-  "Skill invoked"                         -> "Parse arguments (if any)";
-  "Parse arguments (if any)"              -> "User asked to bootstrap from dir(s)?";
-  "User asked to bootstrap from dir(s)?"  -> "Read onboarding.md\n(Branch 1c)" [label="yes"];
-  "User asked to bootstrap from dir(s)?"  -> "knowledge.yaml exists?" [label="no"];
+  "Skill invoked"                         -> "Parse arguments + mode";
+  "Parse arguments + mode"                -> "Run env-probe.sh";
+  "Run env-probe.sh"                      -> "Ask once: install TeX, or source-only?" [label="exit 2"];
+  "Ask once: install TeX, or source-only?" -> "Mode?" [label="source-only"];
+  "Run env-probe.sh"                      -> "Mode?" [label="exit 0"];
+  "Mode?"                                 -> "Read generation.md\n(Re-entry: rebuild)" [label="rebuild"];
+  "Mode?"                                 -> "Sources given?\n(resume file/URL, work dirs)" [label="generate /\nrefresh / letter-only"];
+  "Sources given?\n(resume file/URL, work dirs)" -> "Read onboarding.md\n(Branch 1 with sources)" [label="yes"];
+  "Sources given?\n(resume file/URL, work dirs)" -> "knowledge.yaml exists?" [label="no"];
   "knowledge.yaml exists?"                -> "Read onboarding.md\n(Branch 1)" [label="no"];
   "knowledge.yaml exists?"                -> "Run validate-knowledge.sh" [label="yes"];
   "Run validate-knowledge.sh"             -> "Read onboarding.md\n(Branch 2b: invalid yaml)" [label="exit 2"];
   "Run validate-knowledge.sh"             -> "Read onboarding.md\n(Branch 2: mid-fill)" [label="exit 1"];
   "Run validate-knowledge.sh"             -> "Manual gate check" [label="exit 6\n(no parser)"];
   "Manual gate check"                     -> "Read onboarding.md\n(Branch 2: mid-fill)" [label="fails"];
-  "Manual gate check"                     -> "Job posting given?" [label="passes"];
-  "Run validate-knowledge.sh"             -> "Job posting given?" [label="exit 0"];
+  "Manual gate check"                     -> "Refresh or letter-only?" [label="passes"];
+  "Run validate-knowledge.sh"             -> "Refresh or letter-only?" [label="exit 0"];
+  "Refresh or letter-only?"               -> "Read generation.md\n(Re-entry: posting.json)" [label="yes"];
+  "Refresh or letter-only?"               -> "Job posting given?" [label="no"];
   "Job posting given?"                    -> "Role-aware gap scan" [label="yes"];
   "Job posting given?"                    -> "Read generation.md" [label="no"];
-  "Role-aware gap scan"                   -> "Critical gaps?";
-  "Critical gaps?"                        -> "Ask user: fill or proceed?" [label="yes"];
-  "Critical gaps?"                        -> "Read generation.md" [label="no"];
+  "Role-aware gap scan"                   -> "Gap answerable by an\nevidence: entry?";
+  "Gap answerable by an\nevidence: entry?" -> "Defer to generation Step 4.6" [label="yes"];
+  "Gap answerable by an\nevidence: entry?" -> "Critical gaps left?" [label="no"];
+  "Defer to generation Step 4.6"          -> "Critical gaps left?";
+  "Critical gaps left?"                   -> "Ask user: fill or proceed?" [label="yes"];
+  "Critical gaps left?"                   -> "Read generation.md\n(carry deferred gaps)" [label="no"];
   "Ask user: fill or proceed?"            -> "Read onboarding.md\n(Branch 3)" [label="fill"];
-  "Ask user: fill or proceed?"            -> "Read generation.md\n(carry warnings)" [label="proceed"];
+  "Ask user: fill or proceed?"            -> "Read generation.md\n(carry warnings + deferred gaps)" [label="proceed"];
   "Read generation.md"                    -> "Several resumes requested?";
   "Several resumes requested?"            -> "Also read variants.md" [label="yes"];
   "Several resumes requested?"            -> "Cover letter requested?" [label="no"];
-  "Cover letter requested?"               -> "Also read cover-letter.md\n(after the resume)" [label="yes"];
+  "Cover letter requested?"               -> "Also read cover-letter.md\n(after the resume, or --for SLUG)" [label="yes"];
 }
 ```
 
-### Step 1 — read cwd, look for `knowledge.yaml`
+### Step 1 — probe the environment, resolve the mode, look for `knowledge.yaml`
 
-If absent → **Read `<SKILL_ROOT>/onboarding.md` and follow it.** Do not proceed.
+**1a. Environment probe** (always; it takes a second and asks nothing of the template):
 
-The user may also explicitly ask to bootstrap from a directory (or directories) of their work: "build a knowledge.yaml from `~/work/projects`", "go through this folder and draft my entries". When this happens (whether `knowledge.yaml` exists yet or not), route to onboarding **Branch 1c**, which dispatches a sub-agent per directory to walk the contents, draft `projects[]` / `experience[]` entries, and record `evidence:` pointers for future deep-dives.
+```bash
+bash <SKILL_ROOT>/tests/env-probe.sh
+```
+
+Exit 0 → carry the lines forward (`PYYAML=no` predicts validator exit 6; empty `PDFTOTEXT=` / `PDFTOPPM=` mean the leak/ATS text check and the PNG view will be unmeasured; `DISTRO=` feeds preflight hints). Exit 2 (`STATUS=no-compiler`) → say so **now**, before any other question, and ask once: install TeX (show the `INSTALL_CMD=` lines, stop, they re-invoke) or continue **source-only** (`SOURCE_ONLY=yes`: generation runs everything except compile and QA; the user compiles elsewhere, e.g. Overleaf). Non-interactive session → source-only, stated in the final report.
+
+**1b. Mode.** `--rebuild SLUG` (or "I edited the tex, rebuild it") → skip the gate, **read `generation.md`, "Re-entry modes", rebuild**. `--refresh SLUG` and `--cover-letter --for SLUG` go through the gate first (Step 2) and then to generation's refresh / letter-only modes; a posting is not needed for them. Everything else is `generate`.
+
+**1c. Sources.** The user may hand over a resume file or URL ("import my resume.pdf") and/or one or more directories of their work ("build my entries from `~/work/projects`"), in any combination. When they do, whether `knowledge.yaml` exists yet or not, **read `onboarding.md`, Branch 1 with sources**: one sub-agent per source in parallel, one merge, one validator run.
+
+**1d. `knowledge.yaml`.** Absent → **Read `<SKILL_ROOT>/onboarding.md` and follow it** (Branch 1). Do not proceed.
 
 ### Step 2 — fill-quality check (hard gate, scripted)
 
@@ -125,18 +152,23 @@ If the user provided a job posting:
 
 Cross-check the analysis against `knowledge.yaml`: required skills present in `skills.*` or entry `technologies`? Relevant `experience`/`projects` present (by `tags`, technologies, description)? Profile aligned with the role's domain? Publications present when the posting expects them?
 
-If gaps exist: name the weak fields for this role and offer **Fill** (route to onboarding Branch 3) or **Proceed without** (warn that screening will see the gaps). Carry the choice and the gap list into `generation.md`.
+If gaps exist, split them:
+
+- **Deferred**: a relevant entry (by `tags`, `technologies`, description) carries a non-empty `evidence:` list that could plausibly answer the gap (a missing technology, thin or unquantified achievements, "only one ML project"). Do not ask. Record `deferred: [{gap, entry}]`; generation Step 4.5 runs the deep-dive on those entries and Step 4.6 asks only about what is still open, with the evidence's answer in hand.
+- **Asked now**: gaps no evidence can fill (a degree, publications when none exist, a skill absent from every evidence-bearing entry). Name the weak fields for this role and offer **Fill** (route to onboarding Branch 3) or **Proceed without** (warn that screening will see the gaps).
+
+Carry both lists and the user's choice into `generation.md`.
 
 ### Step 4 — dispatch
 
-When the gate is clear → **Read `<SKILL_ROOT>/generation.md` and follow it.** Pass forward: the yaml content and `OPTIONAL_PLACEHOLDER=` lines, the posting analysis (if any), the template choice (if explicit), the flags from the arguments, any soft-warning gap list. `generation.md` tells you when to load `variants.md`, `deep-dive.md`, and `cover-letter.md`.
+When the gate is clear → **Read `<SKILL_ROOT>/generation.md` and follow it.** Pass forward: the yaml content and `OPTIONAL_PLACEHOLDER=` lines, the `env-probe.sh` lines and `SOURCE_ONLY`, the mode, the posting analysis (if any), the template choice (if explicit), the flags from the arguments, the asked gap list with the user's choice, and the deferred gap list. `generation.md` tells you when to load `variants.md`, `deep-dive.md`, and `cover-letter.md`.
 
 ## When the user wants to skip the gate
 
 "I'm in a hurry", "skip the knowledge.yaml setup", "just invent placeholder content", "I'll fix it later": the answer is still the gate. Say in one line that this skill never fabricates resume content, then offer the fastest path and take it:
 
 - **60-second path**: copy the blank template (Branch 1a), ask for the five required facts in one message (name, email, one degree + university, one job title + company or one project name), write them in, generate. Optional sections can stay empty.
-- **Have a PDF or LinkedIn export?** Import (Branch 1b) fills everything in one step.
+- **Have a PDF or LinkedIn export?** Import (Branch 1 with sources) fills everything in one step.
 
 Never write a `resume.tex` with invented names, employers, numbers, or dates, not even labelled "placeholder": a fabricated resume is the failure this skill exists to prevent, and the bundled `templates/<N>/template.tex` already shows each layout with sample data if they only want to see one.
 
@@ -157,6 +189,9 @@ Never write a `resume.tex` with invented names, employers, numbers, or dates, no
 - All sub-agents use built-in types only (`general-purpose`, `Explore`). No plugin agent dependencies.
 - `evidence:` entries are READ-ONLY pointers. Deep-dive sub-agents may read them; nothing in this skill writes to those locations, and secret-looking files (`.env*`, keys, credentials) are never read.
 - Nothing in this skill writes to `<cwd>/knowledge.yaml` except onboarding, with the user's values, after they asked.
+- `<cwd>/.resume-cache/evidence/` holds posting-agnostic facts extracted from `evidence:` files, with citations. It is the only write outside `outputs/` and `knowledge.yaml`; delete it any time. It never holds posting text or values copied from `knowledge.yaml`.
+- Never re-fetch or re-analyse a posting when `outputs/<slug>/posting.json` exists for the same application; refresh / rebuild / letter-only read it.
+- A gap that an `evidence:` entry could answer is deferred to generation Step 4.6, not asked at the gate.
 
 ## Common mistakes
 
@@ -170,3 +205,7 @@ Never write a `resume.tex` with invented names, employers, numbers, or dates, no
 | Re-fetching a posting URL during generation | Reuse the gate-time analysis |
 | Guessing from a blocked job page | Ask for pasted text; a partial fetch produces wrong tailoring |
 | Letting a variant sub-agent prompt for install consent | It cannot; run preflight and all questions in main first (`variants.md`) |
+| Asking the user to fill a gap that an `evidence:` entry could answer | Defer it (Step 3); the deep-dive runs first, Step 4.6 asks only what stays open |
+| Discovering "no TeX" at preflight, after four questions | `env-probe.sh` in Step 1a asks install-or-source-only first |
+| Re-fetching a posting for "redo the Stripe one" | `--refresh SLUG` reads `outputs/<slug>/posting.json` |
+| Treating "import my PDF and bootstrap from ~/work" as two separate onboarding turns | Branch 1 with sources: parallel sub-agents, one merge, one validator run |
