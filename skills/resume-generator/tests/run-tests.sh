@@ -484,6 +484,23 @@ mkdir -p "$shim_dir/bin"
 cat > "$shim_dir/bin/docker" <<'EOF'
 #!/usr/bin/env sh
 printf '%s\n' "$@"
+if [ "${FAKE_DOCKER_WRITE_OUTPUT:-}" = 1 ]; then
+  previous=""
+  last=""
+  for arg do
+    previous="$last"
+    last="$arg"
+  done
+  output_dir="${last%/*}"
+  expected="type=bind,src=$output_dir,dst=$output_dir"
+  found=0
+  for arg do
+    [ "$arg" = "$expected" ] && found=1
+  done
+  [ "$found" -eq 1 ] || exit 8
+  [ -f "$previous" ] || exit 9
+  printf 'extracted text\n' > "$last"
+fi
 EOF
 chmod +x "$shim_dir/bin/docker"
 cp "$shim" "$shim_dir/pdftotext"
@@ -498,6 +515,21 @@ expect "latex-shim: dispatches by basename" 0 "pdftotext"
 has "example/resume-latex:test" && ok "latex-shim: honors RESUME_LATEX_IMAGE" || bad "latex-shim: honors RESUME_LATEX_IMAGE" "$(oneline)"
 has "type=bind,src=$shim_dir,dst=$shim_dir" && ok "latex-shim: preserves the host path inside the container" || bad "latex-shim: preserves the host path inside the container" "$(oneline)"
 has "$shim_dir/input file.pdf" && has "$shim_dir/output file.txt" && ok "latex-shim: preserves absolute arguments, including spaces" || bad "latex-shim: preserves absolute arguments, including spaces" "$(oneline)"
+external_text_dir="$tmp/extracted text"
+mkdir -p "$external_text_dir"
+: > "$shim_dir/input file.pdf"
+(
+  cd "$shim_dir" || exit 1
+  PATH="$shim_dir/bin:$PATH" FAKE_DOCKER_WRITE_OUTPUT=1 \
+    "$shim_dir/pdftotext" -layout "$shim_dir/input file.pdf" "$external_text_dir/output.txt"
+) > "$tmp/shim-external.out" 2> "$tmp/shim-external.err"
+rc=$?
+out="$(cat "$tmp/shim-external.out")"
+if [ "$rc" -eq 0 ] && [ "$(cat "$external_text_dir/output.txt" 2>/dev/null)" = "extracted text" ]; then
+  ok "latex-shim: exposes an external pdftotext output on the host"
+else
+  bad "latex-shim: exposes an external pdftotext output on the host" "rc=$rc; $(oneline)"
+fi
 cat > "$shim_dir/bin/sudo" <<'EOF'
 #!/usr/bin/env sh
 test "$1" = -n && test "$2" = docker || exit 9

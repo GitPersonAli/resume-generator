@@ -9,11 +9,38 @@ image="${RESUME_LATEX_IMAGE:-resume-latex:1}"
 # Keep the host path unchanged in the container. build.sh emits and later
 # consumes absolute paths, so remapping the directory to /work would make its
 # pdfinfo/pdftotext/pdftoppm calls unable to find generated files.
-set -- run --rm \
-  --mount "type=bind,src=$PWD,dst=$PWD" \
-  -w "$PWD" \
-  --user "$(id -u):$(id -g)" \
-  "$image" "$tool" "$@"
+output_dir=""
+if [ "$tool" = pdftotext ] && [ "$#" -ge 2 ]; then
+  previous=""
+  last=""
+  for arg do
+    previous="$last"
+    last="$arg"
+  done
+  if [ -f "$previous" ] && [ "${last#/}" != "$last" ]; then
+    case "$last" in
+      "$PWD"/*) ;;
+      *)
+        output_dir="${last%/*}"
+        ;;
+    esac
+  fi
+fi
+
+if [ -n "$output_dir" ] && [ -d "$output_dir" ]; then
+  set -- run --rm \
+    --mount "type=bind,src=$PWD,dst=$PWD" \
+    --mount "type=bind,src=$output_dir,dst=$output_dir" \
+    -w "$PWD" \
+    --user "$(id -u):$(id -g)" \
+    "$image" "$tool" "$@"
+else
+  set -- run --rm \
+    --mount "type=bind,src=$PWD,dst=$PWD" \
+    -w "$PWD" \
+    --user "$(id -u):$(id -g)" \
+    "$image" "$tool" "$@"
+fi
 
 if [ "${RESUME_LATEX_SUDO:-}" = 1 ]; then
   exec sudo -n docker "$@"
