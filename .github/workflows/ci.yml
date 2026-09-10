@@ -17,7 +17,7 @@ jobs:
           sudo apt-get install -y shellcheck python3-yaml
 
       - name: shellcheck
-        run: shellcheck -S warning skills/resume-generator/tests/*.sh
+        run: shellcheck -S warning bin/latex-shim skills/resume-generator/tests/*.sh
 
       - name: Unit tests
         run: bash skills/resume-generator/tests/run-tests.sh
