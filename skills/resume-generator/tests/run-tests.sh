@@ -477,6 +477,42 @@ else
   expect "compile-all: no compiler -> exit 2" 2
 fi
 
+echo "== latex-shim =="
+shim="$ROOT/../../bin/latex-shim"
+shim_dir="$tmp/shim work"
+mkdir -p "$shim_dir/bin"
+cat > "$shim_dir/bin/docker" <<'EOF'
+#!/usr/bin/env sh
+printf '%s\n' "$@"
+EOF
+chmod +x "$shim_dir/bin/docker"
+cp "$shim" "$shim_dir/pdftotext"
+(
+  cd "$shim_dir" || exit 1
+  PATH="$shim_dir/bin:$PATH" RESUME_LATEX_IMAGE=example/resume-latex:test \
+    "$shim_dir/pdftotext" -layout "$shim_dir/input file.pdf" "$shim_dir/output file.txt"
+) > "$tmp/shim.out" 2> "$tmp/shim.err"
+rc=$?
+out="$(cat "$tmp/shim.out")"
+expect "latex-shim: dispatches by basename" 0 "pdftotext"
+has "example/resume-latex:test" && ok "latex-shim: honors RESUME_LATEX_IMAGE" || bad "latex-shim: honors RESUME_LATEX_IMAGE" "$(oneline)"
+has "type=bind,src=$shim_dir,dst=$shim_dir" && ok "latex-shim: preserves the host path inside the container" || bad "latex-shim: preserves the host path inside the container" "$(oneline)"
+has "$shim_dir/input file.pdf" && has "$shim_dir/output file.txt" && ok "latex-shim: preserves absolute arguments, including spaces" || bad "latex-shim: preserves absolute arguments, including spaces" "$(oneline)"
+cat > "$shim_dir/bin/sudo" <<'EOF'
+#!/usr/bin/env sh
+test "$1" = -n && test "$2" = docker || exit 9
+printf '%s\n' "$@"
+EOF
+chmod +x "$shim_dir/bin/sudo"
+(
+  cd "$shim_dir" || exit 1
+  PATH="$shim_dir/bin:$PATH" RESUME_LATEX_SUDO=1 \
+    "$shim_dir/pdftotext" input.pdf
+) > "$tmp/shim-sudo.out" 2> "$tmp/shim-sudo.err"
+rc=$?
+out="$(cat "$tmp/shim-sudo.out")"
+expect "latex-shim: sudo opt-in uses non-interactive Docker" 0 "run"
+
 echo ""
 echo "Tests: $npass passed, $nfail failed, $nskip skipped"
 [ "$nfail" -eq 0 ]

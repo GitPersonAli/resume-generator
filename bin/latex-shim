@@ -1,0 +1,21 @@
+#!/usr/bin/env sh
+# Run one TeX or poppler tool inside the resume-latex container. Install this
+# file as a symlink named after each supported tool; dispatch uses that name.
+set -eu
+
+tool="${0##*/}"
+image="${RESUME_LATEX_IMAGE:-resume-latex:1}"
+
+# Keep the host path unchanged in the container. build.sh emits and later
+# consumes absolute paths, so remapping the directory to /work would make its
+# pdfinfo/pdftotext/pdftoppm calls unable to find generated files.
+set -- run --rm \
+  --mount "type=bind,src=$PWD,dst=$PWD" \
+  -w "$PWD" \
+  --user "$(id -u):$(id -g)" \
+  "$image" "$tool" "$@"
+
+if [ "${RESUME_LATEX_SUDO:-}" = 1 ]; then
+  exec sudo -n docker "$@"
+fi
+exec docker "$@"
