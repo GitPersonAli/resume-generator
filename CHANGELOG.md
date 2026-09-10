@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.1 — 2026-09-10
+
+### Fixed
+- Add Ubuntu's `tex-gyre` package explicitly so template 6 can load `tgpagella.sty` in the bundled image. The shim also mounts an explicit external `pdftotext` output directory so `build.sh` can inspect extracted text. CI now builds the image, compiles all six templates as a non-root user, and exercises `build.sh` through the shims with text and PNG checks.
+
 ## 0.5.0 — 2026-09-10
 
 ### Added

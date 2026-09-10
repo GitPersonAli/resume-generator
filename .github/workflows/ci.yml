@@ -60,3 +60,40 @@ jobs:
           pages="$(sed -n 's/^PAGES=//p' "$d/build.out")"
           echo "pages=$pages"
           test "${pages:-0}" -ge 1
+
+  container-compile:
+    name: Compile templates (bundled image, non-root)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build bundled image
+        run: docker build -t resume-latex:ci docker/
+
+      - name: Compile every template as a non-root user
+        run: |
+          docker run --rm \
+            --user 1000:1000 \
+            --mount "type=bind,src=$PWD,dst=/work" \
+            -w /work \
+            resume-latex:ci \
+            bash skills/resume-generator/tests/compile-all.sh
+
+      - name: Exercise build.sh through the installed shims
+        run: |
+          set -eu
+          shim_bin="$(mktemp -d)"
+          for tool in pdflatex xelatex lualatex latexmk pdftotext pdfinfo pdftoppm; do
+            ln -s "$PWD/bin/latex-shim" "$shim_bin/$tool"
+          done
+          output="$PWD/.container-smoke"
+          mkdir "$output"
+          cp -R skills/resume-generator/templates/2/. "$output"/
+          cp skills/resume-generator/templates/2/template.tex "$output/resume.tex"
+          rm "$output/template.tex"
+          PATH="$shim_bin:$PATH" RESUME_LATEX_IMAGE=resume-latex:ci \
+            bash skills/resume-generator/tests/build.sh "$output" --template 2 \
+            | tee "$output/build.out"
+          grep -q '^TEXT_EXTRACT=ok$' "$output/build.out"
+          png="$(sed -n 's/^PNG=//p' "$output/build.out")"
+          test -n "$png" && test -f "$png"

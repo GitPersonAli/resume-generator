@@ -33,7 +33,12 @@ Expect `STATUS=ok`, a non-empty path for every tool, and `PYYAML=yes`.
 
 The shim mounts the current directory at the same absolute path inside the
 container. Relative paths and absolute paths beneath that directory therefore
-work, including the absolute PDF, text, and PNG paths used by `build.sh`.
+work, including the absolute PDF and PNG paths used by `build.sh`. For
+`pdftotext`, an explicit absolute output outside the current directory gets a
+second narrow bind mount for its containing directory; this supports the
+temporary text extraction used by `build.sh`. The shim mounts only the
+directory explicitly named by that output path; it adds no blanket temporary
+or home-directory mount.
 
 Run the generator from the knowledge-repository root (or another ancestor of
 the output directory). An absolute input or output path outside the current

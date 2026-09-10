@@ -30,3 +30,11 @@ ENV TEXMFVAR=/tmp/texmf-var \
     HOME=/tmp
 
 WORKDIR /work
+
+# Ubuntu does not pull TeX Gyre in through the packages above when recommends
+# are disabled. Template 6 requires tgpagella.sty. Keep this small package in
+# its own final layer so rebuilding a released image can reuse the costly TeX
+# toolchain layer.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      tex-gyre \
+ && rm -rf /var/lib/apt/lists/*
