@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.0 — 2026-09-10
+
+### Added
+- `docker/Dockerfile`: a `resume-latex:1` image with the full toolchain the generator needs — pdflatex, xelatex, lualatex, latexmk, poppler-utils, PyYAML, and fontconfig — so a Linux host with Docker needs no TeX installation.
+- `bin/latex-shim`: one dispatcher, symlinked onto PATH under `pdflatex`, `xelatex`, `lualatex`, `latexmk`, `pdftotext`, `pdfinfo`, and `pdftoppm`, that runs each tool in the container with the caller's absolute working path preserved. Hosts with an existing non-interactive sudo policy can opt in with `RESUME_LATEX_SUDO=1`. The skill's scripts call these by name and run unchanged.
+- `docs/CONTAINER.md`: build, install, path-compatibility, and verification steps for the container path.
+
 ## 0.4.0 — 2026-09-03
 
 ### Changed
